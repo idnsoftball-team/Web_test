@@ -1248,9 +1248,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   navigateTo(initial, false);
 
   // 6. 視窗尺寸變化：排程頁若可見則重繪（確保手機/桌機切換）
+  // === Bug Fix: 防止手機滑動時網址列伸縮導致排程重置 ===
+  let lastWidth = window.innerWidth;
+
   window.addEventListener('resize', () => {
-    const scheduleSection = document.getElementById('schedule');
-    if (scheduleSection && !scheduleSection.classList.contains('hidden')) renderSchedule();
+    // 只有當「寬度」發生改變時，才視為需要重新佈局 (例如旋轉手機)
+    if (window.innerWidth !== lastWidth) {
+      lastWidth = window.innerWidth;
+
+      const scheduleSection = document.getElementById('schedule');
+      // 只有當目前正在看排程頁面時，才重新渲染
+      if (scheduleSection && !scheduleSection.classList.contains('hidden')) {
+        renderSchedule();
+      }
+
+      // 更新底部導航顯示狀態
+      const bottomNav = document.getElementById('bottom-nav');
+      if (bottomNav) {
+        if (window.innerWidth < 768) bottomNav.classList.remove('hidden');
+        else bottomNav.classList.add('hidden');
+      }
+    }
   });
 
   // 7. Modal close button 代理（保險）
