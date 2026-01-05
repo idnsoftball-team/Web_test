@@ -631,6 +631,21 @@ function hideModal() {
   if (analysis) analysis.classList.add('hidden');
 }
 
+// === Stage 4: 影片燈箱支援（關閉時停止播放並清除樣式）===
+const _originalHideModal = hideModal;
+hideModal = function () {
+  const modal = document.getElementById('announcement-detail');
+  if (modal) {
+    // 僅針對影片模式做清理，避免 iframe 繼續播放聲音
+    if (modal.classList.contains('video-modal-content') || modal.querySelector('iframe')) {
+      modal.classList.remove('video-modal-content');
+      modal.innerHTML = '';
+    }
+  }
+  _originalHideModal();
+};
+
+
 // 5) 訓練排程（重構：層級式 + 微型卡片）
 function renderSchedule() {
   const container = document.getElementById('schedule-container');
@@ -1084,50 +1099,114 @@ function closeMatchDetail() {
 
 
 // 11) 影音區（沿用原概念：從 matches 收集影片）
+// === Stage 4: 影音專區渲染（沈浸式網格 + YouTube 縮圖）===
 function renderMedia() {
-  const mediaList = document.getElementById('media-list');
-  if (!mediaList) return;
-  mediaList.innerHTML = '';
+  const container = document.getElementById('media-list');
+  if (!container) return;
 
+  // 切換為 grid 佈局
+  container.className = 'video-grid';
+  container.innerHTML = '';
+
+  // 篩選出有影片連結的比賽
   const videos = (matches || []).filter(m => m.video && m.video.url);
+
   if (videos.length === 0) {
-    mediaList.innerHTML = `<div class="card" style="text-align:center; color:#888;">尚無影音紀錄</div>`;
+    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:#aaa;">目前尚無影音紀錄</div>';
     return;
   }
 
+  // Helper: 從 YouTube URL 提取 ID
+  const getYouTubeID = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]{11}).*/;
+    const match = String(url).match(regExp);
+    return match ? match[2] : null;
+  };
+
+  // Fallback 縮圖（非 YouTube 或無法解析 ID 時）
+  const fallbackThumb = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0" stop-color="#222"/>
+          <stop offset="1" stop-color="#111"/>
+        </linearGradient>
+      </defs>
+      <rect width="800" height="450" fill="url(#g)"/>
+      <circle cx="400" cy="225" r="70" fill="rgba(255,255,255,0.08)"/>
+      <polygon points="385,190 385,260 445,225" fill="rgba(255,255,255,0.55)"/>
+      <text x="400" y="350" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-family="Arial" font-size="22">
+        Video
+      </text>
+    </svg>`
+  )}`;
+
   videos.forEach(item => {
+    const ytId = getYouTubeID(item.video.url);
+
+    const thumbUrl = ytId
+      ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`
+      : fallbackThumb;
+
+    const playerNames = (item.players || []).map(getPlayerName).join('、');
+    const opponentNames = (item.opponents || []).map(getPlayerName).join('、');
+    const typeLabel = item.type === 'singles' ? '單打' : '雙打';
+
     const card = document.createElement('div');
-    card.className = 'card';
-    const pName = (item.players || []).map(id => getPlayerName(id)).join('、');
-    card.innerHTML = `<h4 style="margin:0 0 6px;">比賽影片</h4><p style="margin:0 0 10px; color:#666;">${escapeHtml(pName)} - ${escapeHtml(item.date || '')}</p>`;
+    card.className = 'video-card';
+    card.innerHTML = `
+      <div class="video-thumb-container">
+        <img src="${thumbUrl}" class="video-thumb" loading="lazy" alt="video thumbnail">
+        <div class="play-icon-overlay"><i class="far fa-play-circle"></i></div>
+      </div>
+      <div class="video-info">
+        <div class="video-title">${playerNames} <span style="color:#bbb;">vs</span> ${opponentNames}</div>
+        <div class="video-meta">
+          <span><i class="fas fa-calendar-alt"></i> ${item.date || ''}</span>
+          <span>${typeLabel}</span>
+        </div>
+      </div>
+    `;
 
-    if (item.video.provider === 'yt') {
-      const iframe = document.createElement('iframe');
-      iframe.src = item.video.url.replace('watch?v=', 'embed/');
-      iframe.width = '100%';
-      iframe.height = '200';
-      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-      iframe.allowFullscreen = true;
-      card.appendChild(iframe);
-    } else {
-      const link = document.createElement('a');
-      link.href = item.video.url;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.textContent = '前往觀看';
-      card.appendChild(link);
-    }
+    // 點擊播放：YouTube -> 燈箱；其他平台 -> 新分頁
+    card.onclick = () => {
+      if (ytId) {
+        openVideoModal(ytId);
+      } else {
+        window.open(item.video.url, '_blank');
+      }
+    };
 
-    mediaList.appendChild(card);
+    container.appendChild(card);
   });
 }
 
-// 12) 管理模式（加上 null guard，避免按鈕不存在報錯）
-let adminLoggedIn = false;
-const adminPassword = 'kfet2026';
+// 開啟影片燈箱（暫用公告 Modal 容器）
+function openVideoModal(ytId) {
+  const modal = document.getElementById('announcement-detail');
+  if (!modal) return;
 
-// 預設登入（維持你原本的行為）
-adminLoggedIn = true;
+  modal.innerHTML = `
+    <div style="position:relative; width:100%; height:100%;">
+      <button class="btn-close-absolute" onclick="hideModal()" style="top:10px; right:10px; color:white;">
+        <i class="fas fa-times"></i>
+      </button>
+      <iframe
+        src="https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0"
+        style="width:100%; height:100%; border:none; border-radius:8px;"
+        allow="autoplay; encrypted-media"
+        allowfullscreen>
+      </iframe>
+    </div>
+  `;
+
+  // 加上特殊 class 讓它變黑底全寬
+  modal.classList.add('video-modal-content');
+
+  document.body.classList.add('modal-open');
+  modal.classList.add('active');
+}
 
 function renderAdmin() {
   const loginDiv = document.getElementById('admin-login');
@@ -1168,38 +1247,67 @@ function renderAdmin() {
   if (manageScheduleBtn) manageScheduleBtn.onclick = () => showAdminManageSchedule();
 }
 
-function showAdminAddAnnouncement() {
-  const contentDiv = document.getElementById('admin-content');
-  if (!contentDiv) return;
-  contentDiv.innerHTML = '';
+function renderAdminAnnouncementForm() {
+  const content = document.getElementById('admin-content');
+  if (!content) return;
 
-  const form = document.createElement('form');
-  form.innerHTML = `
-    <h4>新增公告</h4>
-    <label style="display:block; margin:10px 0;">日期：<input type="date" id="new-ann-date" required style="width:100%; padding:8px;"></label>
-    <label style="display:block; margin:10px 0;">標題：<input type="text" id="new-ann-title" required style="width:100%; padding:8px;"></label>
-    <label style="display:block; margin:10px 0;">內容：<textarea id="new-ann-content" required style="width:100%; padding:8px; min-height:120px;"></textarea></label>
-    <label style="display:block; margin:10px 0;">相關連結：<input type="text" id="new-ann-link" style="width:100%; padding:8px;"></label>
-    <button type="submit" class="hero-btn" style="width:100%;">新增</button>
+  content.innerHTML = `
+    <div class="admin-form-card">
+      <h3 style="margin-top:0; color:var(--primary-color);">發布新公告</h3>
+      <form id="admin-ann-form">
+        <div class="admin-form-group">
+          <label>公告標題</label>
+          <input type="text" id="new-ann-title" class="admin-input" placeholder="例如：112學年度下學期訓練時間異動" required>
+        </div>
+        <div class="admin-form-group">
+          <label>發布日期</label>
+          <input type="date" id="new-ann-date" class="admin-input" required>
+        </div>
+        <div class="admin-form-group">
+          <label>公告內容</label>
+          <textarea id="new-ann-content" class="admin-textarea" rows="6" placeholder="請輸入詳細內容..." required></textarea>
+        </div>
+        <button type="submit" class="hero-btn" style="width:100%;">確認發布</button>
+      </form>
+    </div>
   `;
+
+  // 預設日期為今天
+  const dateEl = document.getElementById('new-ann-date');
+  if (dateEl && !dateEl.value) {
+    dateEl.value = new Date().toISOString().split('T')[0];
+  }
+
+  const form = document.getElementById('admin-ann-form');
+  if (!form) return;
 
   form.onsubmit = (e) => {
     e.preventDefault();
-    const date = document.getElementById('new-ann-date')?.value || '';
-    const title = (document.getElementById('new-ann-title')?.value || '').trim();
-    const content = (document.getElementById('new-ann-content')?.value || '').trim();
-    const link = (document.getElementById('new-ann-link')?.value || '').trim();
-    if (!date || !title || !content) return;
 
-    const id = announcements.length ? (Math.max(...announcements.map(a => Number(a.id) || 0)) + 1) : 1;
-    announcements.push({ id, date, title, content, images: [], link });
+    const title = document.getElementById('new-ann-title').value.trim();
+    const date = document.getElementById('new-ann-date').value;
+    const contentText = document.getElementById('new-ann-content').value.trim();
 
-    showToast('公告已新增');
-    navigateTo('announcements');
+    if (!title || !date || !contentText) return;
+
+    // 更新前端顯示（實際寫回資料表的邏輯請接續您的原本流程）
+    announcements.unshift({ title, date, content: contentText });
+
+    // 立即刷新公告列表 & 首頁
+    renderAnnouncements();
+    renderHome();
+
+    showToast(`公告「${title}」已發布`);
+
+    form.reset();
+    if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
   };
-
-  contentDiv.appendChild(form);
 }
+
+function showAdminAddAnnouncement() {
+  renderAdminAnnouncementForm();
+}
+
 
 function showAdminLeaveList() {
   const contentDiv = document.getElementById('admin-content');
