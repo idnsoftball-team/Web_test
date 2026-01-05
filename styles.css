@@ -593,3 +593,91 @@ main {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* === 優化：比賽紀錄卡片 (緊湊版) === */
+.match-card {
+  /* 繼承基本卡片樣式，但覆蓋間距 */
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-amount));
+  border: var(--glass-border);
+  border-radius: 12px; /* 稍微縮小圓角 */
+  box-shadow: var(--glass-shadow);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+
+  /* 關鍵優化：高度縮緊 */
+  padding: 12px 16px; /* 縮小內距 */
+  margin-bottom: 8px; /* 縮小卡片間距 */
+  min-height: auto;   /* 移除最小高度限制 */
+  
+  /* 佈局：讓資訊橫向排列以節省垂直空間 */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 標題列 (類型與日期) */
+.match-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.match-type-badge {
+  background: var(--primary-color);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* 對戰組合 (核心資訊) */
+.match-card-vs {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-card-vs i {
+  color: #ccc;
+  font-size: 0.8rem;
+}
+
+/* 比分 */
+.match-card-score {
+  font-size: 0.9rem;
+  color: var(--primary-dark);
+  font-family: 'Roboto', sans-serif; /* 數字用 Roboto 比較好看 */
+  font-weight: bold;
+}
+
+/* === 狀態：被選取 (Selected) === */
+.match-card.selected {
+  /* 變色邏輯：淺金黃色背景 + 深藍邊框 */
+  background: rgba(255, 215, 0, 0.15); /* 金色透明背景 */
+  border: 1px solid var(--primary-color); /* 深藍邊框 */
+  transform: translateX(5px); /* 輕微向右位移，增加選取感 */
+  box-shadow: 0 4px 12px rgba(0, 84, 166, 0.15);
+}
+
+/* 左側指示條 (僅在選取時出現) */
+.match-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: var(--primary-color);
+}
+

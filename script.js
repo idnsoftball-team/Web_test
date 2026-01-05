@@ -930,38 +930,82 @@ function getPlayerName(id) {
   return p ? p.name : id;
 }
 
+// === 優化版：比賽紀錄渲染 (緊湊 + 選取變色) ===
 function renderMatches() {
   const listDiv = document.getElementById('match-list');
-  if (!listDiv) return;
   listDiv.innerHTML = '';
 
-  if (!matches || matches.length === 0) {
-    listDiv.innerHTML = `<div class="card" style="text-align:center; color:#888;">尚無比賽紀錄</div>`;
-    return;
+  const playerFilter = document.getElementById('match-player-filter');
+  const typeFilter = document.getElementById('match-type-filter');
+
+  function updateList() {
+    listDiv.innerHTML = '';
+    const keyword = playerFilter ? playerFilter.value.trim() : '';
+    const typeVal = typeFilter ? typeFilter.value : 'all';
+
+    // 篩選邏輯
+    const filtered = matches.filter(m => {
+      const typeOk = typeVal === 'all' || m.type === typeVal;
+      // getPlayerName 需確保已定義，若無則直接比對 ID
+      const hasPlayer = (id) => {
+          const name = (players.find(p => p.id === id)?.name || id);
+          return name.includes(keyword);
+      };
+      const playerOk = keyword === '' || m.players.some(hasPlayer) || m.opponents.some(hasPlayer);
+      return typeOk && playerOk;
+    });
+
+    if (filtered.length === 0) {
+      listDiv.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">沒有符合的比賽紀錄</div>';
+      return;
+    }
+
+    filtered.forEach(item => {
+      const card = document.createElement('div');
+      // 套用新的緊湊類別 match-card
+      card.className = 'match-card'; 
+
+      const playerNames = item.players.map(id => players.find(p => p.id === id)?.name || id).join('、');
+      const opponentNames = item.opponents.map(id => players.find(p => p.id === id)?.name || id).join('、');
+      const typeLabel = item.type === 'singles' ? '單打' : '雙打';
+
+      // HTML 結構調整為更緊湊的佈局
+      card.innerHTML = `
+        <div class="match-card-header">
+            <span class="match-type-badge">${typeLabel}</span>
+            <span>${item.date}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="match-card-vs">
+                <span>${playerNames}</span>
+                <i class="fas fa-times"></i>
+                <span>${opponentNames}</span>
+            </div>
+            <div class="match-card-score">${item.score}</div>
+        </div>
+      `;
+
+      // 點擊事件：處理變色與詳情顯示
+      card.addEventListener('click', () => {
+        // 1. 移除所有卡片的 selected 狀態
+        document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
+        // 2. 為自己加上 selected 狀態
+        card.classList.add('selected');
+        // 3. 顯示詳情 (維持原有邏輯)
+        showMatchDetail(item);
+      });
+
+      listDiv.appendChild(card);
+    });
   }
 
-  const sorted = matches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  if(playerFilter) playerFilter.oninput = updateList;
+  if(typeFilter) typeFilter.onchange = updateList;
 
-  sorted.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'card';
-
-    const playerNames = (item.players || []).map(id => getPlayerName(id)).join('、');
-    const opponentNames = (item.opponents || []).map(id => getPlayerName(id) || id).join('、');
-    const typeLabel = item.type === 'doubles' ? '雙打' : '單打';
-
-    card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-        <h4 style="margin:0;">${typeLabel}</h4>
-        <span style="font-size:0.85rem; color:#888; white-space:nowrap;">${escapeHtml(item.date || '')}</span>
-      </div>
-      <p style="margin:6px 0 0; color:#555;">對戰：${escapeHtml(playerNames)} vs ${escapeHtml(opponentNames)}</p>
-      <p style="margin:6px 0 0; color:#666;">比分：${escapeHtml(item.score || '')}</p>
-    `;
-    card.addEventListener('click', () => showMatchDetail(item));
-    listDiv.appendChild(card);
-  });
+  // 初始執行一次
+  updateList();
 }
+
 
 function showMatchDetail(item) {
   const panel = document.getElementById('player-analysis');
