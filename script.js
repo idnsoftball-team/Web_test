@@ -601,27 +601,26 @@ function renderAnnouncements() {
 }
 
 // 4) 公告彈窗（Overlay/Modal）
+// === 優化 1：公告詳情 (修正按鈕位置與樣式) ===
 function showAnnouncementDetail(item) {
-  const modal = document.getElementById('announcement-detail');
-  if (!modal) return;
+    const modal = document.getElementById('announcement-detail');
 
-  const linkHtml = item.link
-    ? `<div style="margin-top:12px;"><a href="${escapeAttr(item.link)}" target="_blank" rel="noopener" style="color:var(--primary-color); font-weight:700;">相關連結</a></div>`
-    : '';
+    // 使用 .btn-close-absolute class
+    modal.innerHTML = `
+        <button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button>
+        <h3 style="margin-top:10px; color:var(--primary-color); padding-right:30px;">${item.title}</h3>
+        <div style="color:#888; font-size:0.85rem; margin-bottom:15px; border-bottom:1px dashed #eee; padding-bottom:10px;">
+            <i class="far fa-calendar-alt"></i> ${item.date}
+        </div>
+        <div style="line-height:1.8; color:#333; font-size:0.95rem;">
+            ${item.content.replace(/\n/g, '<br>')}
+        </div>
+    `;
 
-  modal.innerHTML = `
-    <div class="modal-header">
-      <h3>${escapeHtml(item.title || '')}</h3>
-      <button class="modal-close-button" type="button" onclick="hideModal()">&times;</button>
-    </div>
-    <div style="color:#666; font-size:0.9rem; margin-bottom:12px;">${escapeHtml(item.date || '')}</div>
-    <div style="line-height:1.7; color:#444;">${escapeHtml(String(item.content || '')).replace(/\n/g, '<br>')}</div>
-    ${linkHtml}
-  `;
-
-  document.body.classList.add('modal-open');
-  modal.classList.add('active');
+    document.body.classList.add('modal-open');
+    modal.classList.add('active');
 }
+
 
 // Modal 關閉（同時關閉 matches 詳情卡，避免 overlay 卡住）
 function hideModal() {
@@ -931,153 +930,158 @@ function getPlayerName(id) {
 }
 
 // === 優化版：比賽紀錄渲染 (緊湊 + 選取變色) ===
+// === 優化 2：比賽紀錄渲染 (Multi-Filter + Toggle Logic) ===
 function renderMatches() {
-  const listDiv = document.getElementById('match-list');
-  listDiv.innerHTML = '';
-
-  const playerFilter = document.getElementById('match-player-filter');
-  const typeFilter = document.getElementById('match-type-filter');
-
-  function updateList() {
+    const listDiv = document.getElementById('match-list');
     listDiv.innerHTML = '';
-    const keyword = playerFilter ? playerFilter.value.trim() : '';
-    const typeVal = typeFilter ? typeFilter.value : 'all';
 
-    // 篩選邏輯
-    const filtered = matches.filter(m => {
-      const typeOk = typeVal === 'all' || m.type === typeVal;
-      // getPlayerName 需確保已定義，若無則直接比對 ID
-      const hasPlayer = (id) => {
-          const name = (players.find(p => p.id === id)?.name || id);
-          return name.includes(keyword);
-      };
-      const playerOk = keyword === '' || m.players.some(hasPlayer) || m.opponents.some(hasPlayer);
-      return typeOk && playerOk;
-    });
+    // 取得新的篩選器元件
+    const keywordInput = document.getElementById('match-keyword');
+    const chkSingles = document.getElementById('filter-singles');
+    const chkDoubles = document.getElementById('filter-doubles');
 
-    if (filtered.length === 0) {
-      listDiv.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">沒有符合的比賽紀錄</div>';
-      return;
+    function updateList() {
+        listDiv.innerHTML = '';
+        const keyword = keywordInput ? keywordInput.value.trim() : '';
+        const showSingles = chkSingles ? chkSingles.checked : true;
+        const showDoubles = chkDoubles ? chkDoubles.checked : true;
+
+        // 篩選邏輯：類型複選 + 關鍵字
+        const filtered = matches.filter(m => {
+            // 類型檢查 (只要符合勾選的其中一項即可)
+            let typeMatch = false;
+            if (showSingles && m.type === 'singles') typeMatch = true;
+            if (showDoubles && m.type === 'doubles') typeMatch = true;
+
+            // 名字檢查 helper
+            const hasPlayer = (id) => {
+                const name = (players.find(p => p.id === id)?.name || id);
+                return name.includes(keyword);
+            };
+            const playerMatch = keyword === '' || m.players.some(hasPlayer) || m.opponents.some(hasPlayer);
+
+            return typeMatch && playerMatch;
+        });
+
+        if (filtered.length === 0) {
+            listDiv.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">沒有符合的比賽紀錄</div>';
+            return;
+        }
+
+        filtered.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'match-card'; // 保持之前的緊湊樣式
+
+            const playerNames = item.players.map(id => players.find(p => p.id === id)?.name || id).join('、');
+            const opponentNames = item.opponents.map(id => players.find(p => p.id === id)?.name || id).join('、');
+            const typeLabel = item.type === 'singles' ? '單打' : '雙打';
+
+            card.innerHTML = `
+                <div class="match-card-header">
+                    <span class="match-type-badge">${typeLabel}</span>
+                    <span>${item.date}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="match-card-vs">
+                        <span>${playerNames}</span>
+                        <i class="fas fa-times"></i>
+                        <span>${opponentNames}</span>
+                    </div>
+                    <div class="match-card-score">${item.score}</div>
+                </div>
+            `;
+
+            // === 關鍵修改：Toggle 點擊邏輯 ===
+            card.addEventListener('click', () => {
+                const detailPanel = document.getElementById('player-analysis');
+
+                // 檢查是否點擊了「已經選取」的卡片
+                if (card.classList.contains('selected')) {
+                    // 情況 A：再次點擊 -> 取消選取並關閉詳情
+                    card.classList.remove('selected');
+                    detailPanel.classList.add('hidden');
+                } else {
+                    // 情況 B：點擊新卡片 -> 切換選取並顯示詳情
+                    document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    showMatchDetail(item);
+                }
+            });
+
+            listDiv.appendChild(card);
+        });
     }
 
-    filtered.forEach(item => {
-      const card = document.createElement('div');
-      // 套用新的緊湊類別 match-card
-      card.className = 'match-card'; 
+    // 綁定事件監聽
+    if(keywordInput) keywordInput.oninput = updateList;
+    if(chkSingles) chkSingles.onchange = updateList;
+    if(chkDoubles) chkDoubles.onchange = updateList;
 
-      const playerNames = item.players.map(id => players.find(p => p.id === id)?.name || id).join('、');
-      const opponentNames = item.opponents.map(id => players.find(p => p.id === id)?.name || id).join('、');
-      const typeLabel = item.type === 'singles' ? '單打' : '雙打';
-
-      // HTML 結構調整為更緊湊的佈局
-      card.innerHTML = `
-        <div class="match-card-header">
-            <span class="match-type-badge">${typeLabel}</span>
-            <span>${item.date}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="match-card-vs">
-                <span>${playerNames}</span>
-                <i class="fas fa-times"></i>
-                <span>${opponentNames}</span>
-            </div>
-            <div class="match-card-score">${item.score}</div>
-        </div>
-      `;
-
-      // 點擊事件：處理變色與詳情顯示
-      card.addEventListener('click', () => {
-        // 1. 移除所有卡片的 selected 狀態
-        document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
-        // 2. 為自己加上 selected 狀態
-        card.classList.add('selected');
-        // 3. 顯示詳情 (維持原有邏輯)
-        showMatchDetail(item);
-      });
-
-      listDiv.appendChild(card);
-    });
-  }
-
-  if(playerFilter) playerFilter.oninput = updateList;
-  if(typeFilter) typeFilter.onchange = updateList;
-
-  // 初始執行一次
-  updateList();
+    updateList();
 }
 
 
+
+// === 優化 3：比賽詳情面板 (右上角關閉按鈕) ===
 function showMatchDetail(item) {
-  const panel = document.getElementById('player-analysis');
-  if (!panel) return;
+    const modal = document.getElementById('player-analysis');
 
-  panel.innerHTML = '';
+    // 使用 getPlayerName helper (假設 script.js 上方已有定義，若無請補上)
+    const getPName = (id) => players.find(p => p.id === id)?.name || id;
+    const playerNames = item.players.map(getPName).join('、');
+    const opponentNames = item.opponents.map(getPName).join('、');
 
-  const typeLabel = item.type === 'doubles' ? '雙打' : '單打';
-  const playerNames = (item.players || []).map(id => getPlayerName(id)).join('、');
-  const opponentNames = (item.opponents || []).map(id => getPlayerName(id) || id).join('、');
+    // 構建新的 HTML，將關閉按鈕移至右上角
+    modal.innerHTML = `
+        <button class="btn-close-absolute" onclick="closeMatchDetail()"><i class="fas fa-times"></i></button>
 
-  const headerBar = document.createElement('div');
-  headerBar.className = 'modal-header';
-  headerBar.innerHTML = `
-    <h3 style="margin:0;">${typeLabel}紀錄</h3>
-    <button class="btn-close-modal" type="button">關閉</button>
-  `;
-  panel.appendChild(headerBar);
+        <h3 style="margin:0 0 10px 0; color:var(--primary-color);">
+            ${item.type === 'singles' ? '單打' : '雙打'}詳情
+        </h3>
 
-  const info = document.createElement('p');
-  info.innerHTML = `
-    日期：${escapeHtml(item.date || '')}<br>
-    對戰：${escapeHtml(playerNames)} vs ${escapeHtml(opponentNames)}<br>
-    比分：${escapeHtml(item.score || '')}<br>
-    備註：${escapeHtml(item.note || '')}
-  `;
-  panel.appendChild(info);
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px;">
+            <div style="font-weight:bold; color:#333; margin-bottom:5px;">${playerNames} <span style="color:#e74c3c;">vs</span> ${opponentNames}</div>
+            <div style="font-size:0.9rem; color:#666;">日期：${item.date}</div>
+            <div style="font-size:0.9rem; color:#666;">比分：<span style="font-weight:bold; color:var(--primary-dark);">${item.score}</span></div>
+        </div>
 
-  if (item.details && item.details.length > 0) {
-    const table = document.createElement('table');
-    table.innerHTML = `
-      <thead><tr><th>局數</th><th>比分</th></tr></thead>
-      <tbody>
-        ${item.details.map((score, idx) => `<tr><td>${idx + 1}</td><td>${escapeHtml(score)}</td></tr>`).join('')}
-      </tbody>
+        ${item.details && item.details.length > 0 ? `
+        <div style="margin-bottom:15px;">
+            <h4 style="font-size:0.9rem; color:#888; margin-bottom:5px;">局分細節</h4>
+            <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                ${item.details.map((s, i) => 
+                    `<span style="background:white; border:1px solid #ddd; padding:2px 8px; border-radius:4px; font-size:0.85rem;">G${i+1}: ${s}</span>`
+                ).join('')}
+            </div>
+        </div>` : ''}
+
+        ${item.note ? `<div style="font-size:0.9rem; color:#555; line-height:1.5; margin-bottom:15px; border-left:3px solid #ddd; padding-left:8px;">備註：${item.note}</div>` : ''}
+
+        ${item.video && item.video.url ? `
+        <div style="margin-top:10px;">
+             ${item.video.provider === 'yt' ? 
+                `<iframe src="${item.video.url.replace('watch?v=', 'embed/')}" style="width:100%; height:200px; border-radius:8px; border:none;" allowfullscreen></iframe>` : 
+                `<a href="${item.video.url}" target="_blank" class="hero-btn" style="display:block; text-align:center; font-size:0.9rem;">前往觀看影片</a>`
+             }
+        </div>` : ''}
     `;
-    panel.appendChild(table);
-  }
 
-  // 影片
-  if (item.video && item.video.url) {
-    const vidDiv = document.createElement('div');
-    vidDiv.className = 'video-container';
+    modal.classList.remove('hidden');
 
-    if (item.video.provider === 'yt') {
-      const iframe = document.createElement('iframe');
-      iframe.src = item.video.url.replace('watch?v=', 'embed/');
-      iframe.width = '100%';
-      iframe.height = '315';
-      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-      iframe.allowFullscreen = true;
-      vidDiv.appendChild(iframe);
-    } else {
-      const link = document.createElement('a');
-      link.href = item.video.url;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.textContent = '觀看影片';
-      vidDiv.appendChild(link);
-    }
-    panel.appendChild(vidDiv);
-  }
-
-  panel.classList.remove('hidden');
-
-  // close handler
-  panel.querySelector('.btn-close-modal')?.addEventListener('click', () => {
-    panel.classList.add('hidden');
-  });
-
-  try { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+    // 滾動到詳情位置
+    modal.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+// 新增：專門用於關閉比賽詳情的 helper，同時移除卡片選取狀態
+function closeMatchDetail() {
+    const modal = document.getElementById('player-analysis');
+    modal.classList.add('hidden');
+    // 移除所有卡片的選取狀態
+    document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
+}
+
+
+
 
 // 11) 影音區（沿用原概念：從 matches 收集影片）
 function renderMedia() {

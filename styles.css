@@ -681,3 +681,92 @@ main {
   background: var(--primary-color);
 }
 
+/* === UI 優化：通用右上角關閉按鈕 (取代醜醜的肚臍) === */
+.btn-close-absolute {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.btn-close-absolute:hover {
+  background: rgba(0,0,0,0.05);
+  color: #e74c3c;
+  transform: rotate(90deg);
+}
+
+/* === UI 優化：比賽紀錄多重篩選器 (Multi-Filter) === */
+.multi-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+  background: white;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  background: #f9f9f9;
+}
+
+/* 美化複選框 (Checkbox Tag Style) */
+.filter-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #f0f2f5;
+  color: #666;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+/* 當被選取時的樣式 */
+.filter-checkbox-label input:checked + span {
+  color: white;
+}
+.filter-checkbox-label:has(input:checked) {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 2px 5px rgba(0, 84, 166, 0.3);
+}
+
+.filter-checkbox-label input {
+  display: none; /* 隱藏原始 checkbox */
+}
+
+/* 讓比賽詳情卡片具有相對定位，以便放置關閉按鈕 */
+#player-analysis {
+  position: relative;
+  padding-top: 35px; /* 留空間給右上角按鈕 */
+}
+

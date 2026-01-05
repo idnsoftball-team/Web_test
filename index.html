@@ -99,8 +99,26 @@
 
     <section id="matches" class="hidden">
         <h2>比賽紀錄</h2>
+
+        <div class="multi-filter-bar">
+            <div class="filter-row">
+                <input type="text" id="match-keyword" class="filter-search-input" placeholder="搜尋選手姓名...">
+            </div>
+            <div class="filter-row">
+                <label class="filter-checkbox-label">
+                    <input type="checkbox" id="filter-singles" value="singles" checked>
+                    <span>單打</span>
+                </label>
+                <label class="filter-checkbox-label">
+                    <input type="checkbox" id="filter-doubles" value="doubles" checked>
+                    <span>雙打</span>
+                </label>
+            </div>
+        </div>
+
         <div id="match-list" class="card-container"></div>
-        <div id="player-analysis" class="card hidden" style="margin-top:20px;"></div>
+
+        <div id="player-analysis" class="card hidden" style="margin-top:20px; position:relative;"></div>
     </section>
 
     <section id="roster" class="hidden">
