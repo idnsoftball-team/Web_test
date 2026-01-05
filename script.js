@@ -50,6 +50,7 @@ let parents = [];
 let parentChild = [];
 let accounts = [];
 let leaveRequestsData = [];
+let adminLoggedIn = false;  // 管理員登入狀態
 
 // 訓練排程相關常數（用於建立空結構與高亮週期）
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
