@@ -428,3 +428,158 @@ main {
   border: none; border-radius: 8px;
   font-weight: bold; cursor: pointer;
 }
+
+/* ======================================================================
+   Added/Updated styles (Back-to-Top, Section Links, Training Accordion,
+   Compact Grid Cards, Roster Search) — inserted per latest spec
+   ====================================================================== */
+
+/* === 新增：置頂按鈕 (Back to Top) === */
+#back-to-top {
+  position: fixed;
+  bottom: 90px; /* 避開底部導覽列 */
+  right: 20px;
+  width: 45px;
+  height: 45px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  cursor: pointer;
+  z-index: 3500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s;
+}
+
+#back-to-top.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* === 優化：首頁區塊連結 === */
+.section-link-title {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color 0.2s;
+}
+.section-link-title:active { color: var(--primary-color); }
+.section-link-title i { font-size: 0.9rem; color: #999; }
+
+/* === 重構：訓練排程 (層級收折 & 微型卡片) === */
+
+/* 第一層：星期按鈕 */
+.accordion-header {
+  background: white;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  font-weight: 700;
+  color: var(--primary-dark);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  border-left: 5px solid var(--accent-gold);
+}
+
+.accordion-header.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* 內容容器 */
+.accordion-content {
+  display: none;
+  padding: 0 5px 10px 5px;
+  animation: slideDown 0.3s ease;
+}
+.accordion-content.show { display: block; }
+
+/* 第二層：時段標題 */
+.time-slot-header {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 15px 0 8px 5px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.time-slot-header::before {
+  content: ''; display: block; width: 6px; height: 6px; background: var(--primary-color); border-radius: 50%;
+}
+
+/* 第三層：微型卡片網格 (3列佈局) */
+.compact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 強制3欄 */
+  gap: 8px;
+}
+
+.compact-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 8px 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 80px;
+}
+
+.compact-card .table-badge {
+  background: var(--primary-color);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 4px;
+  align-self: center;
+  margin-bottom: 4px;
+}
+
+.compact-card .coach-name {
+  font-size: 0.75rem;
+  color: var(--accent-gold); /* 強調教練 */
+  font-weight: 700;
+  margin-bottom: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.compact-card .players {
+  font-size: 0.75rem;
+  color: #333;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 最多兩行 */
+  -webkit-box-orient: vertical;
+}
+
+/* 名冊搜尋框 */
+.roster-search-bar {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: white;
+  box-shadow: var(--glass-shadow);
+  margin-bottom: 15px;
+  font-size: 1rem;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

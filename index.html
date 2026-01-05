@@ -40,29 +40,30 @@
     </ul>
   </nav>
 
-  <main>
+  <main> 
     <section id="home" class="active">
       <div class="hero-section">
-        <div class="hero-bg-placeholder"></div> <div class="hero-content">
+        <div class="hero-bg-placeholder"></div>
+        <div class="hero-content">
           <div class="hero-title">光復國小桌球隊</div>
           <div class="hero-subtitle">Focus & Fight</div>
           <button class="hero-btn" id="hero-btn">最新賽程 <i class="fas fa-arrow-right"></i></button>
         </div>
       </div>
 
-      <h3 class="section-title">最新動態</h3>
+      <h3 class="section-title section-link-title" onclick="navigateTo('announcements')">
+        最新動態 <i class="fas fa-chevron-right"></i>
+      </h3>
       <div id="home-announcements" class="card-container"></div>
-      
-      <h3 class="section-title" style="margin-top:20px;">今日概況</h3>
-      <div id="home-status-grid" class="card-container">
-          <div id="home-schedule-card"></div>
-          <div id="home-leave-card"></div>
-      </div>
+
+      <h3 class="section-title" style="margin-top:20px;">今日概況 (請假)</h3>
+      <div id="home-leave-overview" class="card-container">
+          </div>
     </section>
 
     <section id="announcements" class="hidden">
-      <h2>公告中心</h2>
-      <div id="announcement-list" class="card-container"></div>
+        <h2>公告中心</h2>
+        <div id="announcement-list" class="card-container"></div>
     </section>
 
     <section id="schedule" class="hidden">
@@ -70,29 +71,30 @@
       <div class="filter-bar" style="margin-bottom:15px;">
         <input type="text" id="schedule-search" placeholder="搜尋學生姓名..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
       </div>
-      <div id="schedule-table" class="scrollable"></div>
+      <div id="schedule-container" class="scrollable">
+        </div>
     </section>
 
     <section id="leave" class="hidden">
-      <h2>線上請假</h2>
-      <div class="card">
-        <form id="leave-form">
-          <label style="display:block; margin-bottom:10px;">姓名 <input type="text" id="leave-name" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;"></label>
-          <label style="display:block; margin-bottom:10px;">日期 <input type="date" id="leave-date" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;"></label>
-          <label style="display:block; margin-bottom:10px;">時段 
-            <select id="leave-slot" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;">
-              <option value="17:00-18:00">17:00-18:00</option>
-              <option value="18:00-19:00">18:00-19:00</option>
-              <option value="19:00-20:00">19:00-20:00</option>
-            </select>
-          </label>
-          <label style="display:block; margin-bottom:10px;">原因 <textarea id="leave-reason" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;"></textarea></label>
-          <button type="submit" class="hero-btn" style="width:100%;">送出請假</button>
-        </form>
-      </div>
-      <h3 style="margin-top:20px;">我的紀錄</h3>
-      <div id="leave-list"></div>
-      <button id="delete-selected-leave" class="hero-btn" style="background:#e74c3c; color:white; margin-top:10px;" disabled>刪除選取</button>
+        <h2>線上請假</h2>
+        <div class="card">
+            <form id="leave-form">
+                <label style="display:block; margin-bottom:10px;">姓名 <input type="text" id="leave-name" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;"></label>
+                <label style="display:block; margin-bottom:10px;">日期 <input type="date" id="leave-date" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;"></label>
+                <label style="display:block; margin-bottom:10px;">時段 
+                    <select id="leave-slot" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;">
+                    <option value="17:00-18:00">17:00-18:00</option>
+                    <option value="18:00-19:00">18:00-19:00</option>
+                    <option value="19:00-20:00">19:00-20:00</option>
+                    </select>
+                </label>
+                <label style="display:block; margin-bottom:10px;">原因 <textarea id="leave-reason" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; margin-top:5px;"></textarea></label>
+                <button type="submit" class="hero-btn" style="width:100%;">送出請假</button>
+            </form>
+        </div>
+        <h3 style="margin-top:20px;">我的紀錄</h3>
+        <div id="leave-list"></div>
+        <button id="delete-selected-leave" class="hero-btn" style="background:#e74c3c; color:white; margin-top:10px;" disabled>刪除選取</button>
     </section>
 
     <section id="matches" class="hidden">
@@ -103,6 +105,7 @@
 
     <section id="roster" class="hidden">
         <h2>教練與球員</h2>
+        <input type="text" id="roster-search" class="roster-search-bar" placeholder="搜尋姓名或背號..." oninput="renderRoster()">
         <div id="roster-staff" class="card-container" style="margin-bottom:20px;"></div>
         <div id="roster-players" class="card-container"></div>
     </section>
@@ -131,22 +134,22 @@
             <div id="admin-content" style="margin-top:20px;"></div>
         </div>
     </section>
-
   </main>
 
   <div id="overlay"></div>
-
   <div id="announcement-detail" class="modal"></div>
+
+  <button id="back-to-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"><i class="fas fa-arrow-up"></i></button>
 
   <nav id="bottom-nav">
     <button data-section="home" class="active"><i class="fas fa-home"></i> 首頁</button>
     <button data-section="schedule"><i class="fas fa-calendar-check"></i> 排程</button>
     <button data-section="leave"><i class="fas fa-clock"></i> 請假</button>
     <button data-section="matches"><i class="fas fa-medal"></i> 紀錄</button>
-    <button data-section="roster"><i class="fas fa-user"></i> 名冊</button>
+    <button data-section="media"><i class="fas fa-video"></i> 影音</button>
   </nav>
 
-  <div id="toast-container"></div>
+<div id="toast-container"></div>
 
   <script src="script.js"></script>
 </body>
