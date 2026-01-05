@@ -19,6 +19,10 @@
  * 如果系統無法存取 Google 服務（例如離線環境），程式會回退到預設假資料。
  */
 const SPREADSHEET_ID = '1mRcCNQSlTVwRRy7u9Yhx9knsw_0ZUyI0p6dMFgO-6os';
+
+
+// === GAS 後端設定 ===
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
 const GID_MAPPING = {
   config: '837241302',
   announcements: '1966814983',
@@ -176,154 +180,112 @@ async function fetchSheetData(sheetName) {
 
 // 載入所有資料：從 Google Sheets 或 fallback
 async function loadAllData() {
-  // init empty schedule
-  initEmptySchedule();
-  // 讀取各分頁
-  const [cfg, ann, ply, par, pchild, stf, acc, sched, leave, mtc] = await Promise.all([
-    fetchSheetData('config'),
-    fetchSheetData('announcements'),
-    fetchSheetData('players'),
-    fetchSheetData('parents'),
-    fetchSheetData('parent_child'),
-    fetchSheetData('staff'),
-    fetchSheetData('accounts'),
-    fetchSheetData('training_schedule'),
-    fetchSheetData('leave_requests'),
-    fetchSheetData('matches')
-  ]);
-  if (ann.length) {
-    announcements = ann.map(row => ({
-      id: row.id || row.ID || row.Id || row.序號 || row.sn,
-      date: row.date || row.日期 || '',
-      title: row.title || row.標題 || '',
-      content: row.content || row.內容 || '',
-      images: row.images ? row.images.split(';').filter(x => x) : [],
-      link: row.link || row.連結 || ''
-    }));
-  } else {
-    // fallback 與原假資料
-    announcements = [
-      { id: 1, date: '2025-12-25', title: '跨年聯誼賽公告', content: '本週末將舉辦跨年聯誼賽，歡迎大家踴躍參與！', images: [], link: '' },
-      { id: 2, date: '2025-11-01', title: '教練人事異動', content: '自本月起，由李教練接任總教練。', images: [], link: '' },
-      { id: 3, date: '2025-10-15', title: '會刊第十期發佈', content: '最新一期會刊已上線，請至後援會專區下載。', images: [], link: '' }
-    ];
-  }
-  if (ply.length) {
-    players = ply.map(row => ({
-      id: row.id || row.ID || row.PlayerID || row.學生編號 || '',
-      name: row.name || row.姓名 || '',
-      class: row.class || row.班級 || '',
-      number: row.number || row.隊號 || row.背號 || ''
-    }));
-  } else {
-    players = [
-      { id: 'P01', name: '張三', class: '五年甲班', number: '1' },
-      { id: 'P02', name: '李四', class: '五年乙班', number: '2' },
-      { id: 'P03', name: '王五', class: '四年甲班', number: '3' },
-      { id: 'P04', name: '趙六', class: '四年乙班', number: '4' },
-      { id: 'P05', name: '陳七', class: '六年甲班', number: '5' },
-      { id: 'P06', name: '林八', class: '六年乙班', number: '6' }
-    ];
-  }
-  if (stf.length) {
-    staff = stf.map(row => ({
-      id: row.id || row.ID || row.coach_id || row.教練編號 || '',
-      name: row.name || row.姓名 || row.coach_name || '',
-      rate: parseInt(row.rate || row.鐘點費 || 0)
-    }));
-  } else {
-    staff = [ { id: 'C01', name: '李教練', rate: 500 }, { id: 'C02', name: '張教練', rate: 500 } ];
-  }
-  if (mtc.length) {
-    matches = mtc.map(row => {
-      // players/opponents may be separated by ',' or '/'
-      const p = (row.players || row.球員 || '').split(/[\/;,\s]+/).filter(x => x);
-      const opp = (row.opponents || row.對手 || '').split(/[\/;,\s]+/).filter(x => x);
-      const details = (row.details || row.局分 || '').split(/[;\s]+/).filter(x => x);
-      return {
-        id: row.id || row.ID || row.序號 || '',
-        type: row.type || row.類型 || 'singles',
-        date: row.date || row.日期 || '',
-        players: p,
-        opponents: opp,
-        score: row.score || row.比分 || '',
-        details: details,
-        note: row.note || row.備註 || '',
-        video: {
-          provider: row.provider || row.平台 || '',
-          url: row.url || row.連結 || ''
-        }
-      };
-    });
-  } else {
-    matches = [
-      {
-        id: 1,
-        type: 'singles',
-        date: '2025-12-01',
-        players: ['P01'],
-        opponents: ['P02'],
-        score: '3-1',
-        details: ['11-7', '9-11', '11-9', '11-6'],
-        note: '表現穩定',
-        video: { provider: 'yt', url: 'https://www.youtube.com/watch?v=ScMzIvxBSi4' }
-      },
-      {
-        id: 2,
-        type: 'doubles',
-        date: '2025-12-05',
-        players: ['P01','P03'],
-        opponents: ['P02','P04'],
-        score: '2-3',
-        details: ['11-9', '7-11', '9-11', '11-8', '8-11'],
-        note: '需加強默契',
-        video: { provider: 'fb', url: 'https://www.facebook.com/watch/?v=123456' }
-      },
-      {
-        id: 3,
-        type: 'singles',
-        date: '2025-11-20',
-        players: ['P04'],
-        opponents: ['P05'],
-        score: '0-3',
-        details: ['8-11', '7-11', '9-11'],
-        note: '加油',
-        video: { provider: '', url: '' }
-      }
-    ];
-  }
-  // parents & parent_child & accounts & leave_requests
-  parents = par;
-  parentChild = pchild;
-  accounts = acc;
-  leaveRequestsData = leave;
-  // training schedule: build schedule structure
-  if (sched.length) {
-    // reset schedule
+  try {
+    const response = await fetch(`${GAS_API_URL}?action=get_all_data`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+
+    // 使用 normalizeData 進行欄位轉換
+    const data = normalizeData(result);
+
+    // 1) 全域變數賦值（核心功能）
+    announcements = data.announcements || [];
+    players = data.players || [];
+    staff = data.staff || [];
+    matches = data.matches || [];
+    parents = data.parents || [];
+    parentChild = data.parentChild || [];
+    accounts = data.accounts || [];
+    leaveRequestsData = data.leaveRequests || data.leave_requests || [];
+
+    // 2) 排程處理：轉為 UI 需要的巢狀物件 schedule[day][slot] = []
     initEmptySchedule();
-    sched.forEach(row => {
-      const day = row.weekday || row.day || row.星期 || '';
-      const slot = row.slot || row.time || row.時段 || '';
-      const tableNo = row.table_no || row.table || row.桌號 || row.桌次 || '';
-      if (!day || !slot || !tableNo) return;
-      if (!schedule[day]) schedule[day] = {};
-      if (!schedule[day][slot]) schedule[day][slot] = [];
-      const coachId = row.coach_id || row.coach || row.教練 || '';
-      const playerAId = row.player_a_id || row.playerA || row.學生A || '';
-      const playerBId = row.player_b_id || row.playerB || row.學生B || '';
-      schedule[day][slot].push({
-        table: parseInt(tableNo),
-        coach: staff.find(c => c.id === coachId) || { id: coachId, name: coachId },
-        playerA: players.find(p => p.id === playerAId) || { id: playerAId, name: playerAId },
-        playerB: players.find(p => p.id === playerBId) || { id: playerBId, name: playerBId },
-        note: row.note || row.備註 || ''
+
+    if (data.schedules && Array.isArray(data.schedules)) {
+      data.schedules.forEach(item => {
+        const day = item.date;   // 例如：'週一'
+        const slot = item.slot; // 例如：'18:00-19:00'
+
+        if (schedule[day] && schedule[day][slot]) {
+          schedule[day][slot].push({
+            table: item.table,
+            coach: item.coach,
+            playerA: item.playerA,
+            playerB: item.playerB,
+            remark: item.remark || ''
+          });
+        }
       });
-    });
-  } else {
-    // fallback：使用示範排程
+    }
+
+    console.log('資料同步完成', data);
+  } catch (e) {
+    console.error('載入失敗', e);
+
+    // fallback：至少讓首頁能顯示錯誤提示
+    announcements = [
+      { id: 1, date: '2025-01-01', title: '系統連線異常', content: '目前無法連線至資料庫，顯示為暫存資料。' }
+    ];
+    // fallback：使用示範排程，避免 UI 整體空白
+    initEmptySchedule();
     populateSampleSchedule();
   }
 }
+
+// 通用 GAS 寫入函式
+async function sendToGas(action, payload) {
+  // 簡單 loading 提示（若目前焦點在按鈕上）
+  const activeEl = document.activeElement;
+  const isBtn = activeEl && activeEl.tagName === 'BUTTON';
+  const originalText = isBtn ? activeEl.innerText : '';
+
+  if (isBtn) {
+    activeEl.innerText = '處理中...';
+    activeEl.disabled = true;
+  }
+
+  try {
+    // 使用 text/plain 避免瀏覽器觸發 CORS preflight
+    const response = await fetch(GAS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, payload })
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+
+    if (result && result.success) {
+      showToast(result.message || '操作成功');
+
+      // 重新載入資料以更新畫面
+      await loadAllData();
+
+      // 若目前在排程頁，重新渲染
+      const scheduleSection = document.getElementById('schedule');
+      if (scheduleSection && !scheduleSection.classList.contains('hidden')) {
+        renderSchedule();
+      }
+
+      // 若目前在請假頁，刷新列表
+      const leaveSection = document.getElementById('leave');
+      if (leaveSection && !leaveSection.classList.contains('hidden')) {
+        renderLeaveList();
+      }
+    } else {
+      showToast('操作失敗: ' + (result?.message || '未知錯誤'));
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('連線錯誤，請稍後再試');
+  } finally {
+    if (isBtn) {
+      activeEl.innerText = originalText;
+      activeEl.disabled = false;
+    }
+  }
+}
+
 
 // leaveRequests 將保存在 localStorage，以 email/姓名為 key 代表不同使用者
 // 請假資料存取
@@ -862,7 +824,7 @@ function renderLeave() {
 
   if (form) {
     form.reset();
-    form.onsubmit = (e) => {
+    form.onsubmit = async (e) => {
       e.preventDefault();
       const name = (document.getElementById('leave-name')?.value || '').trim();
       const date = document.getElementById('leave-date')?.value || '';
@@ -871,13 +833,10 @@ function renderLeave() {
 
       if (!name || !date || !slot) return;
 
-      const list = loadLeaveRequests();
-      const id = Date.now().toString();
-      list.push({ id, name, date, slot, reason });
-      saveLeaveRequests(list);
+      const payload = { name, date, slot, reason };
+      await sendToGas('add_leave', payload);
 
-      renderLeaveList();
-      showToast('請假已送出');
+      // sendToGas 內部會重新載入資料並刷新請假列表
       form.reset();
     };
   }
@@ -1450,3 +1409,128 @@ function escapeAttr(str) {
   // attribute 用：避免引號破壞屬性
   return escapeHtml(str).replaceAll('`', '&#96;');
 }
+
+// -------------------------------------------------------------
+// Data Normalization (Backend -> UI)
+// -------------------------------------------------------------
+
+// 將各種日期格式標準化為 YYYY-MM-DD（支援 Date / Excel serial / 可解析字串）
+// 注意：此 helper 僅供 normalizeData 使用；若你已有更完整的實作，可保留你的版本並移除此段。
+function formatDate(value) {
+  if (value === null || value === undefined) return '';
+  // Date 物件
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString().split('T')[0];
+  }
+  // Excel serial number（以 1899-12-30 為基準）
+  if (typeof value === 'number' && isFinite(value)) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const d = new Date(excelEpoch.getTime() + value * 86400000);
+    return d.toISOString().split('T')[0];
+  }
+  const s = String(value).trim();
+  if (!s) return '';
+  // 已是 YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // 常見 YYYY/MM/DD
+  if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(s)) {
+    const [y, m, d] = s.split('/').map(x => parseInt(x, 10));
+    const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    return dt.toISOString().split('T')[0];
+  }
+  // 其他可解析字串
+  const dt = new Date(s);
+  if (!isNaN(dt.getTime())) return dt.toISOString().split('T')[0];
+  return s; // 無法解析則原樣回傳
+}
+
+// 將 Google Drive 分享連結轉換為可直接顯示的連結（圖片用）
+// 支援：.../file/d/<id>/view、open?id=<id>、uc?id=<id>
+function convertDriveLink(url) {
+  if (!url) return '';
+  const s = String(url).trim();
+  if (!s) return '';
+  // 若已是可用的 direct link，直接回傳
+  if (s.includes('lh3.googleusercontent.com') || s.includes('googleusercontent.com')) return s;
+
+  let id = '';
+  const m1 = s.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1) id = m1[1];
+
+  if (!id) {
+    const m2 = s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (m2) id = m2[1];
+  }
+
+  if (!id) return s;
+
+  // export=view 對圖片最常用；若你是要下載可改 export=download
+  return `https://drive.google.com/uc?export=view&id=${id}`;
+}
+
+// 將後端回傳的 Excel 欄位轉為前端 UI 變數
+function normalizeData(rawData) {
+  // 取得 Config（容錯：有些後端可能回傳 config 或 hero）
+  const config = rawData.hero || rawData.config || {};
+
+  // 1. 公告
+  const announcements = (rawData.announcements || []).map(r => ({
+    id: r.announcement_id ?? r.id ?? r.rowId,
+    date: formatDate(r.date),
+    title: r.title || '',
+    content: r.content || ''
+  }));
+
+  // 2. 球員 (注意欄位對應)
+  const players = (rawData.players || []).map(r => ({
+    rowId: r.rowId, // 重要：用於編輯/刪除
+    id: r.player_id ?? r.id,
+    name: r.student_name ?? r.name ?? '', // Excel: student_name -> UI: name
+    number: r.team_no ?? r.number ?? '',  // Excel: team_no -> UI: number
+    class: r.class ?? '',
+    photo: convertDriveLink(r.photo_url ?? r.photo ?? ''), // Excel: photo_url
+    positions: r.positions ?? ''
+  }));
+
+  // 3. 賽程 (Schedule) - Excel slot 欄位為字串，例如 18:00-19:00
+  const scheduleData = [];
+  (rawData.training_schedule || []).forEach(r => {
+    scheduleData.push({
+      rowId: r.rowId,
+      date: r.weekday,           // 確保 Excel 填的是 '週一'
+      slot: r.slot,              // 確保 Excel 填的是 '18:00-19:00' 且與 defaultSlots 一致
+      table: r.table_no,
+      coach: { name: r.coach_id },    // 暫時顯示 ID（進階可對照 staff 表）
+      playerA: { name: r.player_a_id },
+      playerB: { name: r.player_b_id },
+      remark: r.note || ''
+    });
+  });
+
+  // 4. 請假（容錯支援 leave_requests / leaveRequests）
+  const leaveRequests = (rawData.leave_requests || rawData.leaveRequests || []).map(r => ({
+    id: r.leave_id ?? r.id ?? r.rowId ?? String(Date.now()),
+    name: r.name || r.student_name || '',
+    date: formatDate(r.date),
+    slot: r.slot || '',
+    reason: r.reason || r.note || ''
+  }));
+
+  // 5. 比賽紀錄（若後端已回前端格式，直接沿用；否則保持原樣）
+  const matches = rawData.matches || rawData.match_records || rawData.match || [];
+
+  return {
+    hero: config,
+    announcements,
+    players,
+    schedules: scheduleData,
+    staff: rawData.staff || [],
+    matches,
+    leaveRequests,
+    parents: rawData.parents || [],
+    parentChild: rawData.parent_child || rawData.parentChild || [],
+    accounts: rawData.accounts || [],
+    videos: rawData.media || rawData.videos || []
+  };
+}
+
