@@ -519,69 +519,31 @@ function renderAnnouncements() {
   });
 }
 
+// === 彈窗控制修正 (解決 Overlay 不消失問題) ===
 function showAnnouncementDetail(item) {
-  const modal = document.getElementById('announcement-detail');
-  // 清空內容
-  modal.innerHTML = '';
-  // 建立標題列，左右排列標題與關閉按鈕
-  const headerBar = document.createElement('div');
-  headerBar.className = 'modal-header';
-  const titleEl = document.createElement('h3');
-  titleEl.textContent = item.title;
-  const closeBtnA = document.createElement('button');
-  // 使用專用的關閉按鈕類別，避免樣式外漏到其他元素
-  closeBtnA.className = 'modal-close-button';
-  closeBtnA.textContent = '✕';
-  closeBtnA.title = '關閉';
-  closeBtnA.addEventListener('click', hideModal);
-  headerBar.appendChild(titleEl);
-  headerBar.appendChild(closeBtnA);
-  modal.appendChild(headerBar);
-  // 日期與內容
-  const dateEl = document.createElement('p');
-  dateEl.innerText = item.date;
-  modal.appendChild(dateEl);
-  const contentEl = document.createElement('p');
-  contentEl.innerHTML = item.content.replace(/\n/g, '<br>');
-  modal.appendChild(contentEl);
-  if (item.link) {
-    const link = document.createElement('a');
-    link.href = item.link;
-    link.target = '_blank';
-    link.textContent = '相關連結';
-    modal.appendChild(link);
-  }
-  // 圖片
-  if (item.images && item.images.length > 0) {
-    item.images.forEach(src => {
-      const img = document.createElement('img');
-      img.src = src;
-      modal.appendChild(img);
-    });
-  }
-  modal.classList.remove('hidden');
-  overlay.classList.remove('hidden');
-  // 隱藏時點擊 overlay 或 ESC
-  function escListener(e) {
-    if (e.key === 'Escape') {
-      hideModal();
-      document.removeEventListener('keydown', escListener);
-    }
-  }
-  document.addEventListener('keydown', escListener);
+    const modal = document.getElementById('announcement-detail');
+    const overlay = document.getElementById('overlay');
+    
+    modal.innerHTML = `
+        <div class="modal-header">
+            <h3>${item.title}</h3>
+            <button class="modal-close-button" onclick="hideModal()">&times;</button>
+        </div>
+        <div style="color:#666; font-size:0.9rem; margin-bottom:15px;">${item.date}</div>
+        <div style="line-height:1.6;">${item.content.replace(/\n/g, '<br>')}</div>
+    `;
+    
+    document.body.classList.add('modal-open');
+    modal.classList.add('active');
 }
 
 function hideModal() {
-  // 隱藏所有 modal
-  const modals = document.querySelectorAll('.modal');
-  modals.forEach(m => m.classList.add('hidden'));
-  // 隱藏所有內嵌詳情區
-  const details = document.querySelectorAll('.match-detail');
-  details.forEach(d => d.classList.add('hidden'));
-  // 同時隱藏 overlay，除非側欄仍處於開啟狀態
-  if (!document.body.classList.contains('sidebar-open')) {
-    overlay.classList.add('hidden');
-  }
+    document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+    document.body.classList.remove('modal-open');
+    // 注意：sidebar-open 狀態下 overlay 應保持顯示，這裡只處理 modal 關閉
+    if(!document.body.classList.contains('sidebar-open')) {
+        // overlay 的 CSS 會根據 body class 自動淡出
+    }
 }
 
 // === 手勢滑動開合側欄 ===
@@ -613,87 +575,87 @@ document.addEventListener('touchend', (e) => {
   }
 });
 
-// === 訓練排程 ===
+// 保留您原有的資料讀取邏輯 (loadAllData, fetchSheetData 等)，僅覆蓋以下 UI 渲染函式
+
+// === 優化版：訓練排程渲染 (手機轉卡片) ===
 function renderSchedule() {
   const container = document.getElementById('schedule-table');
   container.innerHTML = '';
+  
+  // 判斷是否為手機版 (使用 CSS Media Query 標準)
   const isMobile = window.innerWidth < 768;
-  // 取得搜尋輸入框
   const searchInput = document.getElementById('schedule-search');
-  // 清空搜尋欄
-  searchInput.value = '';
-  // 手機版：卡片顯示
+
   if (isMobile) {
-    // 建立卡片列表
+    // --- Mobile Card View ---
     weekdays.forEach(day => {
-      // 日期標題
-      const dayHeader = document.createElement('h4');
-      dayHeader.className = 'mobile-day-header';
-      dayHeader.textContent = day;
-      container.appendChild(dayHeader);
+      // 檢查該日是否有行程
+      let hasEvent = false;
       defaultSlots.forEach(slot => {
-        const entries = schedule[day] && schedule[day][slot] ? schedule[day][slot] : [];
-        if (entries.length > 0) {
-          entries.forEach(entry => {
-            const card = document.createElement('div');
-            card.className = 'schedule-mobile-card';
-            card.innerHTML = `\
-              <div class="time-badge">${slot}</div>
-              <div class="schedule-info">
-                <div><strong>桌次 ${entry.table}</strong></div>
-                <div><i class="fas fa-user-tie"></i> ${entry.coach.name}</div>
-                <div><i class="fas fa-user"></i> ${entry.playerA.name} vs ${entry.playerB.name}</div>
-              </div>
-            `;
-            container.appendChild(card);
-          });
-        }
+        if (schedule[day] && schedule[day][slot] && schedule[day][slot].length > 0) hasEvent = true;
       });
-    });
-    // 搜尋輸入僅用於重新觸發 highlight；行動版目前不標註
-    searchInput.oninput = () => {
-      // 行動版不支援表格高亮，無操作
-    };
-    return;
-  }
-  // 桌面版：表格顯示
-  // 建立表格
-  const table = document.createElement('table');
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  headerRow.innerHTML = '<th>時段/星期</th>' + weekdays.map(day => `<th>${day}</th>`).join('');
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-  const tbody = document.createElement('tbody');
-  defaultSlots.forEach(slot => {
-    const row = document.createElement('tr');
-    row.innerHTML = `<th>${slot}</th>`;
-    weekdays.forEach(day => {
-      const cell = document.createElement('td');
-      const entries = schedule[day] && schedule[day][slot] ? schedule[day][slot] : [];
-      if (entries.length === 0) {
-        cell.textContent = '-';
-      } else {
-        // 將桌次資訊顯示為列表
-        const list = document.createElement('ul');
-        entries.forEach(entry => {
-          const li = document.createElement('li');
-          li.innerHTML = `桌${entry.table}：<span class="coach">${entry.coach.name}</span> - <span class="player">${entry.playerA.name}</span>, <span class="player">${entry.playerB.name}</span>`;
-          list.appendChild(li);
-        });
-        cell.appendChild(list);
+      
+      if(hasEvent) {
+          const dayHeader = document.createElement('h4');
+          dayHeader.style.cssText = 'margin: 20px 0 10px; color: var(--primary-dark); border-left: 4px solid var(--accent-gold); padding-left: 10px;';
+          dayHeader.textContent = day;
+          container.appendChild(dayHeader);
+
+          defaultSlots.forEach(slot => {
+            const entries = schedule[day] && schedule[day][slot] ? schedule[day][slot] : [];
+            entries.forEach(entry => {
+              const card = document.createElement('div');
+              card.className = 'schedule-mobile-card';
+              // 卡片內容
+              card.innerHTML = `
+                <div class="time-badge">
+                  <span>${slot.split('-')[0]}</span>
+                  <small>~${slot.split('-')[1]}</small>
+                </div>
+                <div class="schedule-info">
+                  <strong><i class="fas fa-table-tennis"></i> 桌次 ${entry.table}</strong>
+                  <div><i class="fas fa-user-tie"></i> 教練：${entry.coach.name}</div>
+                  <div><i class="fas fa-user-friends"></i> ${entry.playerA.name} vs ${entry.playerB.name}</div>
+                </div>
+              `;
+              container.appendChild(card);
+            });
+          });
       }
-      row.appendChild(cell);
     });
-    tbody.appendChild(row);
-  });
-  table.appendChild(tbody);
-  container.appendChild(table);
-  // 搜尋功能（桌面版高亮）
-  searchInput.oninput = () => {
-    const keyword = searchInput.value.trim();
-    highlightSchedule(keyword);
-  };
+  } else {
+    // --- Desktop Table View (維持原表格邏輯，但增加樣式類別) ---
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.innerHTML = `
+      <thead>
+        <tr style="background:var(--primary-color); color:white;">
+          <th style="padding:10px;">時段</th>
+          ${weekdays.map(d => `<th style="padding:10px;">${d}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${defaultSlots.map(slot => `
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:10px; font-weight:bold; color:#555;">${slot}</td>
+            ${weekdays.map(day => {
+                const entries = schedule[day] && schedule[day][slot] ? schedule[day][slot] : [];
+                if(entries.length === 0) return '<td style="padding:10px; text-align:center; color:#ccc;">-</td>';
+                return `<td style="padding:10px;">${entries.map(e => 
+                    `<div style="font-size:0.9rem; margin-bottom:4px;">
+                        <span style="color:var(--primary-color); font-weight:bold;">T${e.table}</span> 
+                        ${e.coach.name} <br>
+                        <span style="color:#666;">${e.playerA.name} vs ${e.playerB.name}</span>
+                     </div>`
+                ).join('')}</td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+    container.appendChild(table);
+  }
 }
 
 function highlightSchedule(keyword) {
@@ -714,24 +676,24 @@ function highlightSchedule(keyword) {
  * 於畫面底部顯示半透明提示框，幾秒後自動消失。
  * @param {string} message 顯示的文字內容
  */
+// === 優化版：Toast 通知 ===
 function showToast(message) {
   const container = document.getElementById('toast-container');
-  if (!container) return;
   const toast = document.createElement('div');
   toast.className = 'toast';
-  toast.textContent = message;
+  toast.innerHTML = `<i class="fas fa-info-circle" style="margin-right:8px; color:var(--accent-gold);"></i> ${message}`;
   container.appendChild(toast);
-  // 移除舊的消息以避免累積太多
-  // 超過 5 則時刪掉最舊
-  if (container.children.length > 5) {
-    container.removeChild(container.firstElementChild);
-  }
-  // 自動移除
+  
+  // Trigger animation
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
   setTimeout(() => {
-    toast.remove();
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
   }, 3000);
 }
-
 // === 請假 ===
 function renderLeave() {
   // 初始化表單
@@ -913,37 +875,44 @@ function showMatchDetail(item) {
   }
 }
 
-// === 名冊 ===
+// === 優化版：名冊渲染 (加入 3D Tilt 與 預留圖) ===
 function renderRoster() {
   const playerDiv = document.getElementById('roster-players');
   const staffDiv = document.getElementById('roster-staff');
-  playerDiv.innerHTML = '<h3>學員</h3>';
-  staffDiv.innerHTML = '<h3>教練</h3>';
-  players.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `<strong>${p.name}</strong><br>${p.class}｜隊號：${p.number}`;
-    playerDiv.appendChild(card);
-  });
+  playerDiv.innerHTML = ''; staffDiv.innerHTML = ''; // Clear
+
+  // 渲染卡片 Helper
+  const createCard = (name, subtext, icon) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      // 加入預留圖框
+      card.innerHTML = `
+          <div class="img-placeholder"><i class="fas ${icon}"></i></div>
+          <h4>${name}</h4>
+          <p>${subtext}</p>
+      `;
+      return card;
+  };
+
   staff.forEach(c => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `<strong>${c.name}</strong><br>鐘點費：${c.rate}`;
-    staffDiv.appendChild(card);
+      staffDiv.appendChild(createCard(c.name, `教練 (Rate: ${c.rate})`, 'fa-user-tie'));
   });
 
-  // 初始化 3D 傾斜效果（桌機使用）
+  players.forEach(p => {
+      playerDiv.appendChild(createCard(p.name, `${p.class} | 背號 ${p.number}`, 'fa-user'));
+  });
+
+  // 初始化 3D 效果
   if (window.VanillaTilt) {
-    const cards = document.querySelectorAll('#roster-players .card, #roster-staff .card');
-    VanillaTilt.init(cards, {
-      max: 15,
+    VanillaTilt.init(document.querySelectorAll(".card"), {
+      max: 10,
       speed: 400,
       glare: true,
-      'max-glare': 0.2,
+      "max-glare": 0.2,
+      scale: 1.02
     });
   }
 }
-
 
 // === 影音區 ===
 function renderMedia() {

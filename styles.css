@@ -1,557 +1,430 @@
-.btn-close-modal {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.3rem 0.6rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
+/* styles.css - Premium Table Tennis Web App */
 
-.btn-close-modal:hover {
-  background-color: var(--primary-dark);
-}
-
-/* === 全域盒模型與溢出控制 === */
-/* 確保 padding 不會撐大寬度並移除點擊高亮 */
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html {
-  overflow-x: hidden;
-}
-
-body {
-  overflow-x: hidden;
-  width: 100%;
-}
-
-main {
-  width: 100%;
-  padding: 1rem;
-  overflow-x: hidden;
-}
-/* 基本樣式與佈局 */
+/* === 1. 變數系統 (Design Tokens) === */
 :root {
-  /* 核心色系：深藍漸層 + 冠軍金 */
+  /* 品牌色：光復藍漸層 & 冠軍金 */
   --primary-gradient: linear-gradient(135deg, #0054a6 0%, #003366 100%);
   --primary-color: #0054a6;
   --primary-dark: #003366;
   --accent-gold: #FFD700;
-  --text-dark: #333333;
-  --bg-gray: #f4f4f4;
-  /* 玻璃擬態效果 */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.3);
-  --card-shadow: 0 10px 20px rgba(0,0,0,0.1);
-  /* 舊變數保持兼容 */
-  --secondary-color: var(--accent-gold);
-  --background-color: var(--bg-gray);
-  --card-background: #ffffff;
-  --text-color: var(--text-dark);
-  --border-radius: 8px;
-  --shadow: var(--card-shadow);
-  --sidebar-width: 240px;
+  --accent-gold-shadow: rgba(255, 215, 0, 0.4);
+  
+  /* 文字色 */
+  --text-main: #2c3e50;
+  --text-light: #7f8c8d;
+  --text-white: #ffffff;
+
+  /* 玻璃擬態 (Glassmorphism) 參數 */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-bg-high: rgba(255, 255, 255, 0.95); /* 用於側邊欄，避免透出遮罩 */
+  --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --blur-amount: 12px;
+
+  /* 佈局與層級 (Z-Index Hierarchy) - 關鍵修復 */
+  --z-bg: -1;
+  --z-header: 1000;
+  --z-overlay: 2000;
+  --z-sidebar: 2500; /* 必須高於 Overlay */
+  --z-modal: 3000;
+  --z-toast: 4000;
+
+  --sidebar-width: 260px;
+  --header-height: 60px;
+  --border-radius: 16px;
+}
+
+/* === 2. 全域設定 & 背景工程 === */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
 body {
   margin: 0;
-  font-family: 'Noto Sans TC', sans-serif;
-  background-color: var(--background-color);
-  color: var(--text-color);
+  font-family: 'Roboto', 'Noto Sans TC', sans-serif;
+  color: var(--text-main);
+  background-color: #f0f2f5;
+  overflow-x: hidden; /* 強制移除水平卷軸 */
+  width: 100%;
   min-height: 100vh;
-  overflow-x: hidden; /* 防止頁面水平捲軸 */
+  position: relative;
 }
 
+/* 動態背景層：讓玻璃擬態生效的關鍵 */
+.bg-mesh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: var(--z-bg);
+  background: 
+    radial-gradient(circle at 10% 20%, rgba(0, 84, 166, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255, 215, 0, 0.15) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+/* === 3. Header & Navigation === */
 header {
   position: fixed;
   top: 0;
   width: 100%;
-  height: 56px;
-  /* 使用主色漸層提升質感 */
+  height: var(--header-height);
   background: var(--primary-gradient);
-  color: #fff;
+  color: white;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1rem;
-  z-index: 1000;
+  padding: 0 1.5rem;
+  z-index: var(--z-header);
+  box-shadow: 0 2px 15px rgba(0,0,0,0.2);
 }
 
 header h1 {
+  font-size: 1.3rem;
+  font-weight: 900; /* 重磅字體 */
+  letter-spacing: 1px;
   margin: 0;
-  font-size: 1.2rem;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Back button styling */
-#back-button {
+header h1 i { color: var(--accent-gold); }
+
+#menu-toggle, #back-button {
   background: none;
   border: none;
-  color: #fff;
+  color: white;
   font-size: 1.4rem;
-  margin-right: 0.5rem;
   cursor: pointer;
-  display: none;
+  padding: 5px;
+  transition: transform 0.2s;
 }
 
-/* Show back button on small screens when active */
-body.show-back-button #back-button {
-  display: inline;
-}
-/* 當側欄開啟時，標題色調顯示次色 */
-body.sidebar-open header h1 {
-  color: var(--secondary-color);
-}
+#menu-toggle:active { transform: scale(0.9); }
 
-header h1:hover {
-  color: var(--secondary-color);
-}
-
-#menu-toggle {
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 1.5rem;
-  cursor: pointer;
-}
-
-/* 側欄開啟時切換 icon 顏色以提示 */
-body.sidebar-open #menu-toggle {
-  color: var(--secondary-color);
-}
-
+/* 側邊欄 - 質感升級 */
 nav#sidebar {
   position: fixed;
-  top: 56px;
-  bottom: 0;
+  top: 0; /* 改為從頂部開始，蓋住 Header 左側 */
   left: 0;
+  bottom: 0;
   width: var(--sidebar-width);
-  /* 玻璃擬態背景：使用半透明與模糊效果 */
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--glass-bg-high); /* 高不透明度，解決灰暗問題 */
+  backdrop-filter: blur(var(--blur-amount));
+  -webkit-backdrop-filter: blur(var(--blur-amount));
   border-right: var(--glass-border);
-  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1);
-  z-index: 2500;
-  overflow-y: auto;
+  box-shadow: 5px 0 25px rgba(0,0,0,0.1);
+  z-index: var(--z-sidebar);
   transform: translateX(-100%);
-  transition: transform 0.3s ease;
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* 彈性動畫 */
+  padding-top: calc(var(--header-height) + 20px);
 }
 
-/* Mobile bottom navigation */
-nav.mobile-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 56px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-top: var(--glass-border);
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  z-index: 2600;
-}
-nav.mobile-nav button {
-  flex: 1;
-  background: none;
-  border: none;
-  color: var(--text-color);
-  font-size: 0.7rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-nav.mobile-nav button i {
-  font-size: 1.2rem;
-  margin-bottom: 0.1rem;
-}
-nav.mobile-nav button.active {
-  color: var(--primary-color);
-}
-
-/* Hide bottom nav on desktop */
-@media (min-width: 768px) {
-  #bottom-nav {
-    display: none;
-  }
-  nav#sidebar {
-    transform: translateX(0);
-  }
-}
-
-@media (max-width: 767px) {
-  /* Hide sidebar by default on mobile; toggled via JS */
-  nav#sidebar {
-    width: var(--sidebar-width);
-    transform: translateX(-100%);
-  }
-  /* Show bottom nav */
-  nav.mobile-nav {
-    display: flex;
-  }
-}
-
-/* 側邊欄開啟狀態：以 body 的 sidebar-open 類別控制 */
 body.sidebar-open nav#sidebar {
   transform: translateX(0);
 }
 
 nav#sidebar ul {
   list-style: none;
-  padding: 0;
+  padding: 0 1.5rem;
   margin: 0;
 }
 
-nav#sidebar li {
-  border-bottom: 1px solid #eee;
-}
+nav#sidebar li { margin-bottom: 0.5rem; }
 
 nav#sidebar a {
-  display: block;
-  padding: 0.75rem 1rem;
-  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--text-main);
   text-decoration: none;
+  border-radius: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
-nav#sidebar a:hover,
-nav#sidebar a.active {
-  background-color: var(--primary-color);
-  color: #fff;
+nav#sidebar a i { width: 24px; text-align: center; color: var(--primary-color); }
+
+nav#sidebar a:hover, nav#sidebar a.active {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 84, 166, 0.3);
 }
 
-main {
-  margin-top: 56px;
-  padding: 1rem;
-  width: 100%;
-  transition: margin-left 0.3s ease;
-}
+nav#sidebar a:hover i, nav#sidebar a.active i { color: var(--accent-gold); }
 
-/* 桌面版：側邊欄固定開啟 */
-@media (min-width: 768px) {
-  nav#sidebar {
-    transform: translateX(0);
-  }
-  main {
-    margin-left: var(--sidebar-width);
-    width: calc(100% - var(--sidebar-width));
-  }
-  #menu-toggle {
-    display: none;
-  }
-}
-
-section.hidden {
-  display: none;
-}
-
-section.active {
-  display: block;
-}
-
-.card-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.card {
-  background-color: var(--card-background);
-  box-shadow: var(--shadow);
-  border-radius: var(--border-radius);
-  padding: 1rem;
-  margin-bottom: 1rem;
-  width: 100%;
-}
-
-.card img {
-  max-width: 100%;
-  border-radius: var(--border-radius);
-}
-
-.modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: var(--card-background);
-  box-shadow: var(--shadow);
-  border-radius: var(--border-radius);
-  max-width: 600px;
-  width: 90%;
-  padding: 1rem;
-  max-height: 90vh;
-  overflow-y: auto;
-  z-index: 3000;
-}
-
-/* 比賽詳情面板：作為頁面內嵌內容顯示，不使用 fixed */
-.match-detail {
-  background-color: var(--card-background);
-  box-shadow: var(--shadow);
-  border-radius: var(--border-radius);
-  max-width: 800px;
-  margin: 1rem auto;
-  padding: 1rem;
-}
-
-/* 右上角關閉按鈕樣式 */
-/* 通用關閉按鈕樣式（僅用於彈窗或面板）*/
-.modal-close-button {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: transparent;
-  border: none;
-  font-size: 1.4rem;
-  cursor: pointer;
-  color: #666;
-  line-height: 1;
-  padding: 0;
-  z-index: 2100;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-close-button:hover {
-  color: #000;
-}
-
-/* 當關閉按鈕位於 modal-header 內時，取消絕對定位，使用彈性布局 */
-.modal-header .modal-close-button {
-  position: static;
-  right: auto;
-  top: auto;
-  z-index: auto;
-}
-
-/* modal header 排列，使標題與關閉按鈕分散排列 */
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  position: relative;
-}
-
+/* 遮罩層 */
 #overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  /* 稍微降低遮罩不透明度以保留背景感 */
-  background-color: rgba(0, 0, 0, 0.3);
-  z-index: 2000;
+  background: rgba(0, 0, 0, 0.4); /* 加深一點，對比側邊欄的白 */
+  backdrop-filter: blur(3px); /* 背景模糊 */
+  z-index: var(--z-overlay);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
 }
 
-#overlay.hidden {
-  display: none;
+body.sidebar-open #overlay, body.modal-open #overlay {
+  opacity: 1;
+  pointer-events: auto;
 }
 
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.filter-bar label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.scrollable {
-  overflow-x: auto;
-}
-
-#schedule-table table {
+/* === 4. 主要內容區域 === */
+main {
+  margin-top: var(--header-height);
+  padding: 20px;
+  padding-bottom: 80px; /* 留給底部導航空間 */
   width: 100%;
-  border-collapse: collapse;
+  transition: margin-left 0.3s;
 }
 
-#schedule-table th, #schedule-table td {
-  border: 1px solid #ddd;
-  padding: 0.5rem;
-  text-align: center;
+@media (min-width: 768px) {
+  nav#sidebar { transform: translateX(0); padding-top: 80px; }
+  main { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); }
+  #menu-toggle { display: none; }
+  /* 桌機版隱藏底部導航 */
+  #bottom-nav { display: none; }
 }
 
-#schedule-table th {
-  background-color: var(--primary-color);
-  color: #fff;
-}
-
-.error {
-  color: red;
-  margin-top: 0.5rem;
-}
-
-/* 高亮訓練排程搜尋結果 */
-.highlight {
-  background-color: var(--secondary-color);
-  padding: 0 2px;
-  border-radius: 3px;
-  font-weight: bold;
-}
-
-/* === Hero Section === */
+/* === 5. Hero Section (預留圖框優化) === */
 .hero-section {
   position: relative;
-  width: 100%;
-  min-height: 220px;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  margin-bottom: 2rem;
+  box-shadow: var(--glass-shadow);
+  /* 預設質感背景 (Placeholder) */
+  background: radial-gradient(circle at center, #2c3e50 0%, #000 100%);
+  min-height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  margin-bottom: 1.5rem;
-  color: #fff;
-  overflow: hidden;
 }
 
-.hero-section .hero-overlay {
+/* 圖片容器 (若有圖片則顯示，無圖片顯示背景) */
+.hero-bg-placeholder {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: var(--primary-gradient);
-  opacity: 0.85;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIiBvcGFjaXR5PSIwLjEiPjxwYXRoIGQ9Ik0yMCAyMEwyMCAwTDAgMEwwIDIwek00MCA0MEw0MCAyMEwyMCAyMEwyMCA0MHoiIGZpbGw9IiNmZmYiLz48L3N2Zz4='); /* 格紋圖案 */
+  opacity: 0.2;
 }
 
-.hero-section .hero-content {
+.hero-content {
   position: relative;
-  z-index: 1;
-  padding: 1.5rem;
+  z-index: 2;
+  padding: 20px;
 }
 
 .hero-title {
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 900;
-  margin: 0 0 0.5rem;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  color: white;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  margin-bottom: 0.5rem;
 }
 
 .hero-subtitle {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  color: var(--accent-gold);
+  font-size: 1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
 }
 
 .hero-btn {
-  padding: 0.5rem 1.5rem;
-  font-size: 1rem;
+  background: var(--accent-gold);
+  color: #000;
   border: none;
-  border-radius: 30px;
-  background-color: var(--accent-gold);
-  color: var(--text-dark);
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.hero-btn:hover {
-  background-color: #e6c200;
-}
-
-/* === 行動裝置排程卡片樣式 === */
-.mobile-day-header {
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  font-size: 1.2rem;
+  padding: 10px 24px;
+  border-radius: 50px;
   font-weight: bold;
-  color: var(--primary-color);
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px var(--accent-gold-shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.schedule-mobile-card {
-  display: flex;
-  align-items: flex-start;
+.hero-btn:active { transform: scale(0.95); }
+
+/* === 6. 卡片系統 (Glassmorphism Cards) === */
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card {
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(var(--blur-amount));
   border: var(--glass-border);
   border-radius: var(--border-radius);
-  box-shadow: var(--card-shadow);
-  margin-bottom: 0.75rem;
-  padding: 0.75rem;
+  padding: 20px;
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
 }
 
-.schedule-mobile-card .time-badge {
-  background: var(--primary-gradient);
-  color: #fff;
-  border-radius: 4px;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.8rem;
-  margin-right: 0.75rem;
-  white-space: nowrap;
+/* 3D Tilt 效果會自動加上樣式，這裡只需定義基礎 */
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.2);
 }
 
-.schedule-mobile-card .schedule-info {
-  flex: 1;
-  color: var(--text-dark);
-  font-size: 0.9rem;
+.card h4 { margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1rem; }
+.card p { margin: 0 0 8px 0; color: var(--text-light); font-size: 0.95rem; line-height: 1.5; }
+
+/* 預留圖片空間 (Image Placeholder) */
+.img-placeholder {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #e0e6ed;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a0aec0;
+  font-size: 2rem;
 }
 
-.schedule-mobile-card .schedule-info div {
-  margin-bottom: 0.3rem;
+/* === 7. 排程樣式 (手機卡片版) === */
+.schedule-mobile-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: stretch;
+  border-left: 5px solid var(--primary-color); /* 狀態條 */
 }
 
-.schedule-mobile-card .schedule-info i {
-  margin-right: 0.3rem;
-}
-
-/* === Toast 消息樣式 === */
-#toast-container {
-  position: fixed;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 4000;
+.time-badge {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
-  pointer-events: none;
+  padding-right: 15px;
+  margin-right: 15px;
+  border-right: 1px dashed #eee;
+  min-width: 80px;
 }
 
-.toast {
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  margin-top: 0.3rem;
+.time-badge span {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--primary-color);
+}
+.time-badge small { font-size: 0.8rem; color: #888; }
+
+.schedule-info { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.schedule-info strong { font-size: 1.1rem; color: #333; }
+.schedule-info div { display: flex; align-items: center; gap: 6px; color: #666; font-size: 0.9rem; }
+.schedule-info i { color: var(--accent-gold); width: 16px; text-align: center; }
+
+/* === 8. Modal & Toast === */
+.modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: white;
+  width: 90%; max-width: 500px;
+  border-radius: 20px;
+  padding: 24px;
+  z-index: var(--z-modal);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
   opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* 彈跳效果 */
+}
+
+.modal.active {
+  opacity: 1;
   pointer-events: auto;
-  animation: toastFadeIn 0.3s forwards, toastFadeOut 0.3s forwards 2.7s;
+  transform: translate(-50%, -50%) scale(1);
 }
 
-@keyframes toastFadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.modal-header h3 { margin: 0; color: var(--primary-color); }
+.modal-close-button { font-size: 1.5rem; background: #f0f2f5; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #333; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 80px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(44, 62, 80, 0.9);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  z-index: var(--z-toast);
+  opacity: 0;
+  transition: all 0.4s;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* === 9. 手機版底部導航 === */
+#bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; width: 100%;
+  height: 60px;
+  background: white;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: var(--z-header);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
 }
 
-@keyframes toastFadeOut {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-10px); }
+#bottom-nav button {
+  background: none; border: none;
+  flex: 1; height: 100%;
+  color: #999;
+  font-size: 0.75rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
 }
 
-/* Responsive tweaks */
-@media (max-width: 768px) {
-  /* 手機版：側欄預設關閉，由 JS 控制 open 狀態；主內容滿版 */
-  .card-container {
-    flex-direction: column;
-  }
-  main {
-    margin-left: 0;
-    width: 100%;
-  }
+#bottom-nav button.active { color: var(--primary-color); }
+#bottom-nav button.active i { transform: translateY(-3px); }
+#bottom-nav button i { font-size: 1.2rem; transition: transform 0.2s; }
+
+/* Hidden utility */
+.hidden { display: none !important; }
+
+/* Admin Login Card Style */
+#admin-login.card {
+  max-width: 400px;
+  margin: 40px auto;
+  text-align: center;
+  padding: 40px;
+}
+#admin-login input {
+  width: 100%; padding: 12px;
+  margin: 15px 0; border: 1px solid #ddd; border-radius: 8px;
+  font-size: 1rem;
+}
+#admin-login button {
+  width: 100%; padding: 12px;
+  background: var(--primary-gradient); color: white;
+  border: none; border-radius: 8px;
+  font-weight: bold; cursor: pointer;
 }
