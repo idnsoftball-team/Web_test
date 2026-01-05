@@ -450,6 +450,9 @@ function showSection(sectionId) {
     case 'admin':
       renderAdmin();
       break;
+    case 'more':
+      // '更多'頁面僅顯示連結列表，無需初始化資料
+      break;
   }
 }
 
@@ -1080,29 +1083,160 @@ function showAdminManageSchedule() {
   contentDiv.appendChild(p);
 }
 
+// === 導航堆疊與頁面切換 ===
+let navStack = [];
+
+function updateActiveNav(sectionId) {
+  // 更新側邊欄與底部導航的 active 樣式
+  document.querySelectorAll('nav#sidebar a').forEach(a => {
+    if (a.dataset.section === sectionId) {
+      a.classList.add('active');
+    } else {
+      a.classList.remove('active');
+    }
+  });
+  document.querySelectorAll('#bottom-nav button').forEach(btn => {
+    if (btn.dataset.section === sectionId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function updateBackButton() {
+  const backBtn = document.getElementById('back-button');
+  if (navStack.length > 1) {
+    document.body.classList.add('show-back-button');
+    backBtn.classList.remove('hidden');
+  } else {
+    document.body.classList.remove('show-back-button');
+    backBtn.classList.add('hidden');
+  }
+}
+
+function navigateTo(sectionId, pushState = true) {
+  showSection(sectionId);
+  updateActiveNav(sectionId);
+  if (pushState) {
+    history.pushState({ section: sectionId }, '', '#' + sectionId);
+    navStack.push(sectionId);
+  }
+  updateBackButton();
+}
+
+function goBack() {
+  if (navStack.length > 1) {
+    navStack.pop();
+    const prev = navStack[navStack.length - 1] || 'home';
+    showSection(prev);
+    updateActiveNav(prev);
+    history.back();
+    updateBackButton();
+  }
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   // 載入資料（Google Sheets 或假資料）
   await loadAllData();
-  // 渲染首頁
-  renderHome();
+  // 初始化 nav stack
+  navStack = [];
+  // 設置底部導航顯示與隱藏
+  const bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) {
+    if (window.innerWidth < 768) {
+      bottomNav.classList.remove('hidden');
+    } else {
+      bottomNav.classList.add('hidden');
+    }
+    window.addEventListener('resize', () => {
+      if (window.innerWidth < 768) {
+        bottomNav.classList.remove('hidden');
+      } else {
+        bottomNav.classList.add('hidden');
+      }
+    });
+  }
+  // 綁定底部導航按鈕
+  if (bottomNav) {
+    bottomNav.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const section = btn.dataset.section;
+      if (section) {
+        if (section === 'more') {
+          navigateTo('more');
+        } else {
+          navigateTo(section);
+        }
+      }
+    });
+  }
+  // 綁定更多頁內連結
+  const moreLinks = document.getElementById('more-links');
+  if (moreLinks) {
+    moreLinks.addEventListener('click', (e) => {
+      e.preventDefault();
+      const link = e.target.closest('a');
+      if (!link) return;
+      const section = link.dataset.section;
+      if (section) {
+        navigateTo(section);
+      }
+    });
+  }
+  // 綁定側邊欄連結
+  document.querySelectorAll('nav#sidebar a').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const section = a.dataset.section;
+      if (section) {
+        navigateTo(section);
+        // 在手機上關閉側欄
+        document.body.classList.remove('sidebar-open');
+      }
+    });
+  });
+  // 綁定漢堡按鈕
+  const menuToggle = document.getElementById('menu-toggle');
+  if (menuToggle) {
+    menuToggle.addEventListener('click', () => {
+      document.body.classList.toggle('sidebar-open');
+    });
+  }
+  // 綁定返回按鈕
+  const backButton = document.getElementById('back-button');
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      goBack();
+    });
+  }
+  // 綁定瀏覽器返回按鈕
+  window.addEventListener('popstate', (e) => {
+    const section = e.state && e.state.section ? e.state.section : navStack[navStack.length - 2] || 'home';
+    // 當 history 返回時，不再 push 狀態
+    navigateTo(section, false);
+    // 也要同步修正 navStack
+    if (navStack.length > 1) navStack.pop();
+  });
+  // 初次渲染首頁
+  navigateTo('home', true);
   // Hero 按鈕點擊：切換至最新排程
   const heroBtn = document.getElementById('hero-btn');
   if (heroBtn) {
     heroBtn.addEventListener('click', () => {
-      showSection('schedule');
-      // 滾動到頂端
+      navigateTo('schedule');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
-  // 監聽視窗尺寸變化：當排程頁面顯示時重新渲染
+  // 視窗尺寸變化時重新渲染排程（若頁面可見）
   window.addEventListener('resize', () => {
     const scheduleSection = document.getElementById('schedule');
     if (scheduleSection && !scheduleSection.classList.contains('hidden')) {
       renderSchedule();
     }
   });
-  // 桌面版側邊欄由 CSS 控制，行動版預設關閉
   // 統一為所有 modal 添加關閉按鈕代理事件
   document.body.addEventListener('click', (e) => {
     if (!e.target || !e.target.classList) return;

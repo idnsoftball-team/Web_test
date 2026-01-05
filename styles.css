@@ -87,6 +87,21 @@ header h1 {
   transition: color 0.2s ease;
 }
 
+/* Back button styling */
+#back-button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+  display: none;
+}
+
+/* Show back button on small screens when active */
+body.show-back-button #back-button {
+  display: inline;
+}
 /* 當側欄開啟時，標題色調顯示次色 */
 body.sidebar-open header h1 {
   color: var(--secondary-color);
@@ -125,6 +140,64 @@ nav#sidebar {
   overflow-y: auto;
   transform: translateX(-100%);
   transition: transform 0.3s ease;
+}
+
+/* Mobile bottom navigation */
+nav.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 56px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: var(--glass-border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 2600;
+}
+nav.mobile-nav button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+nav.mobile-nav button i {
+  font-size: 1.2rem;
+  margin-bottom: 0.1rem;
+}
+nav.mobile-nav button.active {
+  color: var(--primary-color);
+}
+
+/* Hide bottom nav on desktop */
+@media (min-width: 768px) {
+  #bottom-nav {
+    display: none;
+  }
+  nav#sidebar {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 767px) {
+  /* Hide sidebar by default on mobile; toggled via JS */
+  nav#sidebar {
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+  }
+  /* Show bottom nav */
+  nav.mobile-nav {
+    display: flex;
+  }
 }
 
 /* 側邊欄開啟狀態：以 body 的 sidebar-open 類別控制 */

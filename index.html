@@ -19,7 +19,10 @@
 </head>
 <body>
   <header>
-    <h1>光復國小桌球隊</h1>
+    <!-- back button for navigation stack -->
+    <button id="back-button" class="hidden" aria-label="返回">←</button>
+    <h1 id="app-title">光復國小桌球隊</h1>
+    <!-- hamburger menu remains for desktop / admin view -->
     <button id="menu-toggle" aria-label="打開導覽">☰</button>
   </header>
   <nav id="sidebar">
@@ -145,6 +148,26 @@
   </main>
   <!-- 彈窗遮罩 -->
   <div id="overlay" class="hidden"></div>
+
+  <!-- Bottom navigation for mobile -->
+  <nav id="bottom-nav" class="mobile-nav hidden">
+    <button data-section="home"><i class="fas fa-home"></i><span>首頁</span></button>
+    <button data-section="announcements"><i class="fas fa-bullhorn"></i><span>公告</span></button>
+    <button data-section="schedule"><i class="fas fa-calendar-alt"></i><span>排程</span></button>
+    <button data-section="leave"><i class="fas fa-paper-plane"></i><span>請假</span></button>
+    <button data-section="more"><i class="fas fa-ellipsis-h"></i><span>更多</span></button>
+  </nav>
+
+  <!-- More section for bottom nav '更多' -->
+  <section id="more" class="hidden">
+    <h2>更多功能</h2>
+    <ul id="more-links" class="more-links">
+      <li><a href="#" data-section="matches">比賽紀錄</a></li>
+      <li><a href="#" data-section="roster">名冊</a></li>
+      <li><a href="#" data-section="media">影音區</a></li>
+      <li><a href="#" data-section="admin">管理模式</a></li>
+    </ul>
+  </section>
 
   <!-- Toast container：用於顯示通知訊息 -->
   <div id="toast-container"></div>
