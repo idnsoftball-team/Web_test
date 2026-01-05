@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>光復國小桌球隊 PWA</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="script.js"></script>
+  <!-- PWA theme color -->
+  <!-- 依 LOGO 主色調整瀏覽器地址欄顏色 -->
+  <meta name="theme-color" content="#0054a6" />
+</head>
+<body>
+  <header>
+    <h1>光復國小桌球隊</h1>
+    <button id="menu-toggle" aria-label="打開導覽">☰</button>
+  </header>
+  <nav id="sidebar">
+    <ul>
+      <li><a href="#" data-section="home">首頁</a></li>
+      <li><a href="#" data-section="announcements">公告</a></li>
+      <li><a href="#" data-section="schedule">訓練排程</a></li>
+      <li><a href="#" data-section="leave">請假</a></li>
+      <li><a href="#" data-section="matches">比賽紀錄</a></li>
+      <li><a href="#" data-section="roster">名冊</a></li>
+      <li><a href="#" data-section="media">影音區</a></li>
+      <li><a href="#" data-section="admin">管理模式</a></li>
+    </ul>
+  </nav>
+  <main>
+    <!-- 首頁 -->
+    <section id="home" class="active">
+      <h2>首頁</h2>
+      <div id="home-announcements" class="card-container"></div>
+      <div id="home-schedule" class="card-container"></div>
+      <div id="home-leave" class="card-container"></div>
+    </section>
+    <!-- 公告 -->
+    <section id="announcements" class="hidden">
+      <h2>公告</h2>
+      <div id="announcement-list" class="card-container"></div>
+      <div id="announcement-detail" class="modal hidden"></div>
+    </section>
+    <!-- 訓練排程 -->
+    <section id="schedule" class="hidden">
+      <h2>訓練排程</h2>
+      <div id="schedule-filter" class="filter-bar">
+        <label>搜尋學生：<input type="text" id="schedule-search" placeholder="輸入名字或隊號"></label>
+      </div>
+      <div id="schedule-table" class="scrollable"></div>
+    </section>
+    <!-- 請假 -->
+    <section id="leave" class="hidden">
+      <h2>請假</h2>
+      <div id="leave-form-section" class="card">
+        <h3>提交請假</h3>
+        <form id="leave-form">
+          <label>姓名：<input type="text" id="leave-name" required></label>
+          <label>日期：<input type="text" id="leave-date" placeholder="YYYY-MM-DD" required></label>
+          <label>時段：
+            <select id="leave-slot">
+              <option value="18:00-19:00">18:00-19:00</option>
+              <option value="19:00-20:00">19:00-20:00</option>
+              <option value="20:00-21:00">20:00-21:00</option>
+              <option value="17:00-18:00">17:00-18:00</option>
+              <option value="12:00-13:00">12:00-13:00</option>
+              <option value="13:00-14:00">13:00-14:00</option>
+              <option value="14:00-15:00">14:00-15:00</option>
+              <option value="15:00-16:00">15:00-16:00</option>
+            </select>
+          </label>
+          <label>原因：<textarea id="leave-reason"></textarea></label>
+          <button type="submit">送出請假</button>
+        </form>
+      </div>
+      <div id="leave-list-section" class="card">
+        <h3>我的請假紀錄</h3>
+        <div id="leave-list"></div>
+        <button id="delete-selected-leave" disabled>刪除選取</button>
+      </div>
+    </section>
+    <!-- 比賽紀錄 -->
+    <section id="matches" class="hidden">
+      <h2>比賽紀錄</h2>
+      <div class="filter-bar">
+        <label>球員：<input type="text" id="match-player-filter" placeholder="輸入球員名稱"></label>
+        <label>類型：
+          <select id="match-type-filter">
+            <option value="all">全部</option>
+            <option value="singles">單打</option>
+            <option value="doubles">雙打</option>
+          </select>
+        </label>
+      </div>
+      <div id="match-list" class="card-container"></div>
+      <!-- 比賽詳情面板，預設隱藏。不是彈窗，顯示在頁面內 -->
+      <div id="player-analysis" class="match-detail hidden"></div>
+    </section>
+    <!-- 名冊 -->
+    <section id="roster" class="hidden">
+      <h2>名冊</h2>
+      <div id="roster-players" class="card-container"></div>
+      <div id="roster-staff" class="card-container"></div>
+    </section>
+    <!-- 影音區 -->
+    <section id="media" class="hidden">
+      <h2>影音區</h2>
+      <div id="media-list" class="card-container"></div>
+    </section>
+    <!-- 管理模式 -->
+    <section id="admin" class="hidden">
+      <h2>管理模式</h2>
+      <div id="admin-login" class="card">
+        <h3>登入</h3>
+        <label>密碼：<input type="password" id="admin-password"></label>
+        <button id="admin-login-btn">登入</button>
+        <p id="admin-login-error" class="error hidden">密碼錯誤，請再試一次</p>
+      </div>
+      <div id="admin-dashboard" class="hidden">
+        <h3>管理面板</h3>
+        <div class="admin-actions">
+          <button id="admin-add-announcement">新增公告</button>
+          <button id="admin-view-leave">查看請假紀錄</button>
+          <button id="admin-manage-schedule">管理排程</button>
+        </div>
+        <div id="admin-content"></div>
+      </div>
+    </section>
+  </main>
+  <!-- 彈窗遮罩 -->
+  <div id="overlay" class="hidden"></div>
+  <!-- Service worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .catch(err => console.error('Service worker registration failed', err));
+    }
+  </script>
+</body>
+</html>
