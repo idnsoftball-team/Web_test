@@ -198,6 +198,7 @@ async function loadAllData() {
     parentChild = data.parentChild || [];
     accounts = data.accounts || [];
     leaveRequestsData = data.leaveRequests || data.leave_requests || [];
+    window.heroConfig = data.hero || {};
 
     // 2) 排程處理：轉為 UI 需要的巢狀物件 schedule[day][slot] = []
     initEmptySchedule();
@@ -286,6 +287,35 @@ async function sendToGas(action, payload) {
     }
   }
 }
+
+// 管理功能：需要密碼驗證的 GAS 寫入
+async function sendToGasWithAuth(action, payload) {
+    const password = document.getElementById('admin-password')?.value || prompt('請輸入管理密碼確認操作：');
+    if(!password) return;
+
+    showToast('處理中...');
+
+    try {
+        const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action, payload, password })
+        });
+        const result = await response.json();
+        if(result.success) {
+            showToast(result.message);
+            await loadAllData(); 
+            // 根據 action 刷新畫面
+            if(action.includes('leave')) showAdminLeaveList();
+            if(action.includes('config')) renderHome();
+        } else {
+            showToast('失敗: ' + result.message);
+        }
+    } catch(e) {
+        showToast('連線錯誤');
+    }
+}
+
+
 
 
 // leaveRequests 將保存在 localStorage，以 email/姓名為 key 代表不同使用者
@@ -484,6 +514,24 @@ function navigateTo(sectionId, pushState = true) {
 
 // 2) 首頁渲染（修復「今日概況/請假」呈現）
 function renderHome() {
+
+  // 套用 Hero 設定（背景圖）
+  try {
+    const bgUrl = window.heroConfig && (window.heroConfig.hero_bg_url || window.heroConfig.heroBgUrl);
+    const heroBg = document.querySelector('#home .hero-bg-placeholder');
+    if (heroBg) {
+      if (bgUrl) {
+        heroBg.style.backgroundImage = `url(${convertDriveLink(bgUrl)})`;
+        heroBg.style.backgroundSize = 'cover';
+        heroBg.style.backgroundPosition = 'center';
+      } else {
+        heroBg.style.backgroundImage = '';
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
   // 最新公告（前 3 筆）
   const homeAnnouncements = document.getElementById('home-announcements');
   if (homeAnnouncements) {
@@ -1205,6 +1253,15 @@ function renderAdmin() {
 
   const manageScheduleBtn = document.getElementById('admin-manage-schedule');
   if (manageScheduleBtn) manageScheduleBtn.onclick = () => showAdminManageSchedule();
+
+  const settingsBtn = document.getElementById('admin-settings');
+  if (settingsBtn) settingsBtn.onclick = () => showAdminSettings();
+
+  const heroSettingsBtn = document.getElementById('admin-hero-settings');
+  if (heroSettingsBtn) heroSettingsBtn.onclick = () => showAdminSettings();
+
+  const siteSettingsBtn = document.getElementById('admin-site-settings');
+  if (siteSettingsBtn) siteSettingsBtn.onclick = () => showAdminSettings();
 }
 
 function renderAdminAnnouncementForm() {
@@ -1269,34 +1326,94 @@ function showAdminAddAnnouncement() {
 }
 
 
+// A. 顯示管理後台：請假列表 (含編輯/刪除按鈕)
 function showAdminLeaveList() {
   const contentDiv = document.getElementById('admin-content');
-  if (!contentDiv) return;
+  contentDiv.innerHTML = '<h4>全部請假紀錄</h4><div class="table-responsive"><table class="admin-table" id="admin-leave-table"></table></div>';
 
-  contentDiv.innerHTML = '<h4>全部請假紀錄</h4>';
   const list = loadLeaveRequests();
+  const table = document.getElementById('admin-leave-table');
 
   if (!list || list.length === 0) {
     contentDiv.innerHTML += '<p style="color:#888;">尚無請假紀錄</p>';
     return;
   }
 
-  const table = document.createElement('table');
   table.innerHTML = `
-    <thead><tr><th>姓名</th><th>日期</th><th>時段</th><th>原因</th></tr></thead>
-    <tbody>
-      ${list.map(item => `
-        <tr>
-          <td>${escapeHtml(item.name || '')}</td>
-          <td>${escapeHtml(item.date || '')}</td>
-          <td>${escapeHtml(item.slot || '')}</td>
-          <td>${escapeHtml(item.reason || '')}</td>
-        </tr>
-      `).join('')}
-    </tbody>
+    <thead>
+      <tr>
+        <th>姓名</th><th>日期</th><th>時段</th><th>原因</th><th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
   `;
-  contentDiv.appendChild(table);
+
+  const tbody = table.querySelector('tbody');
+
+  list.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(item.name)}</td>
+      <td>${escapeHtml(item.date)}</td>
+      <td>${escapeHtml(item.slot)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.reason)}</td>
+      <td>
+        <button class="btn-icon edit" title="編輯"><i class="fas fa-edit"></i></button>
+        <button class="btn-icon delete" title="刪除"><i class="fas fa-trash-alt"></i></button>
+      </td>
+    `;
+
+    const btnEdit = tr.querySelector('.edit');
+    const btnDelete = tr.querySelector('.delete');
+
+    btnEdit.onclick = () => {
+       const newReason = prompt('修改請假原因：', item.reason);
+       if(newReason !== null) {
+           sendToGasWithAuth('update_leave', {
+               rowId: item.rowId,
+               name: item.name,
+               date: item.date,
+               slot: item.slot,
+               reason: newReason
+           });
+       }
+    };
+
+    btnDelete.onclick = () => {
+        if(confirm(`確定要刪除 ${item.name} 的請假嗎？`)) {
+            sendToGasWithAuth('delete_leave', { rowId: item.rowId });
+        }
+    };
+
+    tbody.appendChild(tr);
+  });
 }
+
+
+// B. 新增：網站設定 (Hero Banner)
+function showAdminSettings() {
+    const contentDiv = document.getElementById('admin-content');
+    const currentBg = (window.heroConfig && window.heroConfig.hero_bg_url) || '';
+
+    contentDiv.innerHTML = `
+        <div class="admin-form-card">
+            <h3 style="margin-top:0; color:var(--primary-color);">網站外觀設定</h3>
+            <div class="admin-form-group">
+                <label>Hero Banner 圖片連結</label>
+                <input type="text" id="conf-hero-bg" class="admin-input" value="${escapeHtml(currentBg)}" placeholder="請輸入圖片 URL">
+                <small style="color:#666;">建議使用 1920x1080 圖片</small>
+            </div>
+            <button id="btn-save-config" class="hero-btn" style="width:100%;">儲存設定</button>
+        </div>
+    `;
+
+    document.getElementById('btn-save-config').onclick = () => {
+        const url = document.getElementById('conf-hero-bg').value.trim();
+        sendToGasWithAuth('update_config', { hero_bg_url: url });
+    };
+}
+
+
 
 function showAdminManageSchedule() {
   const contentDiv = document.getElementById('admin-content');
@@ -1508,13 +1625,16 @@ function normalizeData(rawData) {
     });
   });
 
-  // 4. 請假（容錯支援 leave_requests / leaveRequests）
-  const leaveRequests = (rawData.leave_requests || rawData.leaveRequests || []).map(r => ({
-    id: r.leave_id ?? r.id ?? r.rowId ?? String(Date.now()),
-    name: r.name || r.student_name || '',
-    date: formatDate(r.date),
+  // 4. 請假
+  const leaveRequests = (rawData.leave_requests || []).map(r => ({
+    id: r.request_id || r.id,
+    rowId: r.rowId, // 用於編輯/刪除
+    // ★ 關鍵修復：對應 Excel 的欄位名稱
+    name: r.created_by_email || r.name || '未填寫',
+    date: formatDate(r.leave_date || r.date),
     slot: r.slot || '',
-    reason: r.reason || r.note || ''
+    reason: r.reason || '',
+    status: r.status || 'pending'
   }));
 
   // 5. 比賽紀錄（若後端已回前端格式，直接沿用；否則保持原樣）
@@ -1534,4 +1654,3 @@ function normalizeData(rawData) {
     videos: rawData.media || rawData.videos || []
   };
 }
-
