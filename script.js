@@ -1376,23 +1376,17 @@ function showAdminLeaveList() {
       <div class="leave-item-header">
         <div class="leave-item-name">${escapeHtml(item.name)}</div>
         <div class="leave-item-date">
-          ${escapeHtml(item.date)} <br> 
-          <span style="font-size:0.8em; opacity:0.8;">${escapeHtml(item.slot)}</span>
+          ${escapeHtml(item.date)} <span>${escapeHtml(item.slot)}</span>
         </div>
       </div>
 
       <div class="leave-item-reason">
-        <span style="color:#888; font-size:0.8em;">事由：</span><br>
         ${escapeHtml(item.reason)}
       </div>
 
       <div class="leave-item-actions">
-        <button class="action-btn edit">
-          <i class="fas fa-edit"></i> 編輯
-        </button>
-        <button class="action-btn delete">
-          <i class="fas fa-trash-alt"></i> 刪除
-        </button>
+        <button class="action-btn edit"><i class="fas fa-edit"></i> 編輯</button>
+        <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
       </div>
     `;
 

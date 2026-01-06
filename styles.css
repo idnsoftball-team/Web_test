@@ -1165,3 +1165,325 @@ main {
 
 .action-btn.delete { color: #e74c3c; }
 .action-btn.delete:hover { background: rgba(231, 76, 60, 0.1); }
+
+/* ==========================================================
+   styles.css - Fixes & Tweaks (Override Patch v11)
+   Focus: header, #menu-toggle/#back-button hit area, leave-item compact cards
+   ========================================================== */
+
+/* === 1. Header 與 按鈕終極修復 === */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  /* 確保層級最高，且背景不透明 */
+  background: var(--primary-gradient);
+  z-index: 5000 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+
+  /* 佈局設定 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Logo左，按鈕右 */
+  padding: 0 1rem; /* 左右留白 */
+}
+
+/* 標題 (Logo) */
+header h1 {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 確保文字不會蓋到按鈕 */
+  z-index: 5001;
+  pointer-events: none; /* 讓點擊穿透文字，避免誤觸 */
+}
+
+/* 按鈕容器 (包含返回鍵與漢堡選單) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%; /* 撐滿高度 */
+}
+
+/* 漢堡選單與返回按鈕 - 強制感應區 */
+#menu-toggle, #back-button {
+  position: relative; /* 改回相對定位，但在 Flex 容器中 */
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem; /* 圖示大一點 */
+  cursor: pointer;
+
+  /* 關鍵：加大點擊範圍 (Hit Area) */
+  padding: 0 15px;
+  height: 60px; /* 與 Header 等高 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* 確保層級 */
+  z-index: 5002 !important;
+}
+
+#menu-toggle:active, #back-button:active {
+  background: rgba(255, 255, 255, 0.1); /* 點擊回饋 */
+}
+
+/* 避免 Main 被 Fixed Header 遮住 */
+main {
+  margin-top: 60px;
+  padding: 15px;
+  padding-bottom: 80px;
+  min-height: calc(100vh - 60px);
+}
+
+/* === 2. 管理後台請假卡片 (緊湊優化版) === */
+.leave-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* 卡片間距縮小 */
+}
+
+.leave-item {
+  background: white;
+  border-radius: 10px;
+  padding: 12px 15px; /* 內部縮減 padding */
+  border-left: 4px solid var(--primary-color);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* 內容間距縮小 */
+  position: relative;
+}
+
+.leave-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* 垂直置中 */
+}
+
+.leave-item-name {
+  font-weight: 700;
+  font-size: 1.1rem; /* 姓名維持大字體 */
+  color: var(--text-main);
+}
+
+/* 日期與時間：同一列顯示 */
+.leave-item-date {
+  font-size: 0.95rem; /* 字體放大 */
+  color: #444; /* 深灰色，對比度高一點 */
+  font-weight: 500;
+  background: #f4f6f8;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block; /* 確保不換行 */
+}
+
+/* 在 span 內部的時間字體樣式 (若 HTML 有分開包) */
+.leave-item-date span {
+  margin-left: 8px;
+  font-size: 0.95rem; /* 時間也放大 */
+  color: var(--primary-color); /* 用顏色區隔 (例如藍色) */
+  font-weight: 700;
+}
+
+.leave-item-reason {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+  margin-top: 2px;
+  padding-left: 2px;
+}
+
+/* 操作按鈕列：高度縮緊 */
+.leave-item-actions {
+  border-top: 1px dashed #eee;
+  padding-top: 6px; /* 縮小上方留白 */
+  margin-top: 6px;  /* 縮小與上方內容距離 */
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  font-size: 0.85rem; /* 按鈕文字稍微縮小 */
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 8px; /* 按鈕感應區 */
+  border-radius: 4px;
+}
+
+/* 其餘樣式保持不變... */
+
+/* ==========================================================
+   styles.css - Fixes & Tweaks (Override Patch)
+   Focus: header, #menu-toggle/#back-button hit area, leave-item compact cards
+   ========================================================== */
+
+/* === 1. Header 與 按鈕終極修復 === */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  /* 確保層級最高，且背景不透明 */
+  background: var(--primary-gradient);
+  z-index: 5000 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+
+  /* 佈局設定 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Logo左，按鈕右 */
+  padding: 0 1rem; /* 左右留白 */
+}
+
+/* 標題 (Logo) */
+header h1 {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 確保文字不會蓋到按鈕 */
+  z-index: 5001;
+  pointer-events: none; /* 讓點擊穿透文字，避免誤觸 */
+}
+
+/* 按鈕容器 (包含返回鍵與漢堡選單) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%; /* 撐滿高度 */
+}
+
+/* 漢堡選單與返回按鈕 - 強制感應區 */
+#menu-toggle, #back-button {
+  position: relative; /* 改回相對定位，但在 Flex 容器中 */
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem; /* 圖示大一點 */
+  cursor: pointer;
+
+  /* 關鍵：加大點擊範圍 (Hit Area) */
+  padding: 0 15px;
+  height: 60px; /* 與 Header 等高 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* 確保層級 */
+  z-index: 5002 !important;
+}
+
+#menu-toggle:active, #back-button:active {
+  background: rgba(255, 255, 255, 0.1); /* 點擊回饋 */
+}
+
+/* 避免 Main 被 Fixed Header 遮住 */
+main {
+  margin-top: 60px;
+  padding: 15px;
+  padding-bottom: 80px;
+  min-height: calc(100vh - 60px);
+}
+
+/* === 2. 管理後台請假卡片 (緊湊優化版) === */
+.leave-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* 卡片間距縮小 */
+}
+
+.leave-item {
+  background: white;
+  border-radius: 10px;
+  padding: 12px 15px; /* 內部縮減 padding */
+  border-left: 4px solid var(--primary-color);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* 內容間距縮小 */
+  position: relative;
+}
+
+.leave-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* 垂直置中 */
+}
+
+.leave-item-name {
+  font-weight: 700;
+  font-size: 1.1rem; /* 姓名維持大字體 */
+  color: var(--text-main);
+}
+
+/* 日期與時間：同一列顯示 */
+.leave-item-date {
+  font-size: 0.95rem; /* 字體放大 */
+  color: #444; /* 深灰色，對比度高一點 */
+  font-weight: 500;
+  background: #f4f6f8;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block; /* 確保不換行 */
+}
+
+/* 在 span 內部的時間字體樣式 (若 HTML 有分開包) */
+.leave-item-date span {
+  margin-left: 8px;
+  font-size: 0.95rem; /* 時間也放大 */
+  color: var(--primary-color); /* 用顏色區隔 (例如藍色) */
+  font-weight: 700;
+}
+
+.leave-item-reason {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+  margin-top: 2px;
+  padding-left: 2px;
+}
+
+/* 操作按鈕列：高度縮緊 */
+.leave-item-actions {
+  border-top: 1px dashed #eee;
+  padding-top: 6px; /* 縮小上方留白 */
+  margin-top: 6px;  /* 縮小與上方內容距離 */
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  font-size: 0.85rem; /* 按鈕文字稍微縮小 */
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 8px; /* 按鈕感應區 */
+  border-radius: 4px;
+}
+
+/* 其餘樣式保持不變... */
