@@ -209,14 +209,8 @@ async function loadAllData() {
         const slot = item.slot; // 例如：'18:00-19:00'
 
         if (schedule[day] && schedule[day][slot]) {
-          schedule[day][slot].push({
-            table: item.table,
-            coach: item.coach,
-            playerA: item.playerA,
-            playerB: item.playerB,
-            remark: item.remark || ''
-          });
-        }
+          schedule[day][slot].push(item);
+}
       });
     }
 
@@ -315,7 +309,6 @@ async function sendToGasWithAuth(action, payload) {
             // 根據 action 刷新畫面
             if(action.includes('leave')) showAdminLeaveList();
             if(action.includes('config')) renderHome();
-            if(action.includes('player') && typeof showAdminPlayerList === 'function') showAdminPlayerList();
         } else {
             showToast('失敗: ' + result.message);
         }
@@ -841,12 +834,20 @@ function renderRoster() {
   // 球員
   players.forEach(p => {
     const name = p?.name || '';
-    const number = String(p?.number ?? '');
-    const info = `${p?.class || ''} | #${number}`;
-    const hit = !searchVal
-      || name.toLowerCase().includes(searchVal)
-      || number.toLowerCase().includes(searchVal);
+    const grade = String(p?.grade ?? '');
+    const cls = String(p?.class ?? '');
+    const paddle = String(p?.paddle ?? '');
+
+    const infoParts = [];
+    if (grade) infoParts.push(`${grade}年`);
+    if (cls) infoParts.push(`${cls}班`);
+    let info = infoParts.join(' ');
+    if (paddle) info += (info ? ' | ' : '') + `膠皮:${paddle}`;
+
+    const hay = [name, grade, cls, paddle, p?.nickname, p?.hand, p?.style].filter(Boolean).join(' ').toLowerCase();
+    const hit = !searchVal || hay.includes(searchVal);
     if (!hit) return;
+
     playerDiv.appendChild(createRosterCard(name, info, 'fa-user'));
   });
 
@@ -1298,16 +1299,19 @@ function renderAdmin() {
   }
 
   const addAnnBtn = document.getElementById('admin-add-announcement');
-  if (addAnnBtn) addAnnBtn.onclick = () => showAdminAddAnnouncement();
+  if (addAnnBtn) addAnnBtn.onclick = () => renderAdminAnnouncementForm();
 
   const viewLeaveBtn = document.getElementById('admin-view-leave');
   if (viewLeaveBtn) viewLeaveBtn.onclick = () => showAdminLeaveList();
 
-  
-    const managePlayersBtn = document.getElementById('admin-manage-players');
-    if (managePlayersBtn) managePlayersBtn.onclick = () => showAdminPlayerList();
-const manageScheduleBtn = document.getElementById('admin-manage-schedule');
-  if (manageScheduleBtn) manageScheduleBtn.onclick = () => showAdminManageSchedule();
+  const managePlayersBtn = document.getElementById('admin-manage-players');
+  if (managePlayersBtn) managePlayersBtn.onclick = () => showAdminPlayerList();
+
+  const manageMatchesBtn = document.getElementById('admin-manage-matches');
+  if (manageMatchesBtn) manageMatchesBtn.onclick = () => showAdminMatchList();
+
+  const manageScheduleBtn = document.getElementById('admin-manage-schedule');
+  if (manageScheduleBtn) manageScheduleBtn.onclick = () => showAdminScheduleList();
 
   const settingsBtn = document.getElementById('admin-settings');
   if (settingsBtn) settingsBtn.onclick = () => showAdminSettings();
@@ -1456,231 +1460,6 @@ function showAdminSettings() {
     };
 }
 
-// === 球員管理功能 (Stage 5: 緊湊摺疊卡片) ===
-
-// A. 球員列表：緊湊摺疊版
-function showAdminPlayerList() {
-  const contentDiv = document.getElementById('admin-content');
-  if (!contentDiv) return;
-
-  contentDiv.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
-      <h4 style="margin:0; color:var(--primary-color);">球員名冊管理</h4>
-      <button id="btn-add-player" class="hero-btn" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增球員</button>
-    </div>
-    <div id="admin-player-list"></div>
-  `;
-
-  const addBtn = document.getElementById('btn-add-player');
-  if (addBtn) addBtn.onclick = () => renderAdminPlayerForm();
-
-  const listContainer = document.getElementById('admin-player-list');
-  if (!listContainer) return;
-
-  // 年級排序（高年級在前）
-  const sortedPlayers = (players || []).slice().sort((a, b) => (Number(b.grade) || 0) - (Number(a.grade) || 0));
-
-  if (sortedPlayers.length === 0) {
-    listContainer.innerHTML = '<div style="text-align:center; color:#888;">尚無球員資料</div>';
-    return;
-  }
-
-  sortedPlayers.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'player-card';
-
-    // 組合班級顯示字串（例如：6年 1班）
-    const gradeClass = `${p.grade ? p.grade + '年' : ''} ${p.class ? p.class + '班' : ''}`.trim();
-
-    card.innerHTML = `
-      <div class="player-header">
-        <div class="player-info-main">
-          <span class="player-name">${escapeHtml(p.name || '')}</span>
-          <span class="player-class">${escapeHtml(gradeClass || '未填班級')}</span>
-        </div>
-        <i class="fas fa-chevron-down toggle-icon"></i>
-      </div>
-
-      <div class="player-details">
-        <div class="detail-grid">
-           <div><span class="detail-label">暱稱:</span> ${escapeHtml(p.nickname || '-')}</div>
-           <div><span class="detail-label">性別:</span> ${escapeHtml(p.gender || '-')}</div>
-           <div><span class="detail-label">膠皮:</span> ${escapeHtml(p.paddle || '-')}</div>
-           <div><span class="detail-label">持拍:</span> ${escapeHtml(p.hand || '-')}</div>
-           <div style="grid-column:1/-1"><span class="detail-label">打法:</span> ${escapeHtml(p.style || '-')}</div>
-           <div style="grid-column:1/-1"><span class="detail-label">狀態:</span> <span style="color:${p.isActive === 'FALSE' ? 'red' : 'green'}">${p.isActive === 'FALSE' ? '離隊' : '在隊'}</span></div>
-        </div>
-
-        <div class="leave-item-actions" style="margin-top:15px;">
-           <button class="action-btn edit"><i class="fas fa-edit"></i> 編輯</button>
-           <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
-        </div>
-      </div>
-    `;
-
-    // 1) 綁定展開/閉合
-    const header = card.querySelector('.player-header');
-    if (header) {
-      header.onclick = () => {
-        card.classList.toggle('expanded');
-      };
-    }
-
-    // 2) 綁定編輯/刪除（避免觸發收合）
-    const btnEdit = card.querySelector('.edit');
-    const btnDelete = card.querySelector('.delete');
-
-    if (btnEdit) {
-      btnEdit.onclick = (e) => {
-        e.stopPropagation();
-        renderAdminPlayerForm(p);
-      };
-    }
-
-    if (btnDelete) {
-      btnDelete.onclick = (e) => {
-        e.stopPropagation();
-        if (confirm(`確定要刪除球員 ${p.name} 嗎？`)) {
-          sendToGasWithAuth('delete_player', { rowId: p.rowId }).then(() => {
-            // 重新渲染列表（以防後端刪除成功但畫面未刷新）
-            showAdminPlayerList();
-          });
-        }
-      };
-    }
-
-    listContainer.appendChild(card);
-  });
-}
-
-// B. 球員表單：已移除照片欄位
-function renderAdminPlayerForm(player = null) {
-  const contentDiv = document.getElementById('admin-content');
-  if (!contentDiv) return;
-
-  const isEdit = !!player;
-  const p = player || {};
-
-  const paddles = ['平面', '短顆', '中顆', '長顆', 'Anti', '不詳'];
-  const styles = ['刀板', '直板', '日直', '削球'];
-  const grades = [6, 5, 4, 3, 2, 1];
-
-  contentDiv.innerHTML = `
-    <div class="admin-form-card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-         <h3 style="margin:0; color:var(--primary-color);">${isEdit ? '編輯球員' : '新增球員'}</h3>
-         <button class="action-btn" onclick="showAdminPlayerList()" style="background:#eee; padding:5px 10px;">取消</button>
-      </div>
-
-      <form id="player-form">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div class="admin-form-group">
-                <label>姓名 *</label>
-                <input type="text" id="p-name" class="admin-input" value="${escapeHtml(p.name || '')}" required>
-            </div>
-            <div class="admin-form-group">
-                <label>暱稱</label>
-                <input type="text" id="p-nick" class="admin-input" value="${escapeHtml(p.nickname || '')}" placeholder="選填">
-            </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-            <div class="admin-form-group">
-                <label>年級</label>
-                <select id="p-grade" class="admin-select">
-                    <option value="">選</option>
-                    ${grades.map(g => `<option value="${g}" ${String(p.grade) == String(g) ? 'selected' : ''}>${g}</option>`).join('')}
-                </select>
-            </div>
-            <div class="admin-form-group">
-                <label>班級</label>
-                <input type="text" id="p-class" class="admin-input" value="${escapeHtml(p.class || '')}" placeholder="601">
-            </div>
-            <div class="admin-form-group">
-                <label>性別</label>
-                <select id="p-gender" class="admin-select">
-                    <option value="男" ${p.gender === '男' ? 'selected' : ''}>男</option>
-                    <option value="女" ${p.gender === '女' ? 'selected' : ''}>女</option>
-                </select>
-            </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div class="admin-form-group">
-                <label>膠皮</label>
-                <select id="p-paddle" class="admin-select">
-                    <option value="">請選擇</option>
-                    ${paddles.map(pd => `<option value="${pd}" ${p.paddle === pd ? 'selected' : ''}>${pd}</option>`).join('')}
-                </select>
-            </div>
-            <div class="admin-form-group">
-                <label>持拍</label>
-                <select id="p-hand" class="admin-select">
-                    <option value="右手" ${p.hand === '右手' ? 'selected' : ''}>右手</option>
-                    <option value="左手" ${p.hand === '左手' ? 'selected' : ''}>左手</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="admin-form-group">
-            <label>打法</label>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; padding:10px; background:#f9f9f9; border-radius:8px;">
-                ${styles.map(s => `
-                    <label style="display:flex; align-items:center; gap:5px; font-weight:normal; cursor:pointer; font-size:0.9rem;">
-                        <input type="checkbox" name="p-style" value="${s}" ${(p.style || '').includes(s) ? 'checked' : ''}>
-                        ${s}
-                    </label>
-                `).join('')}
-            </div>
-        </div>
-
-        <div class="admin-form-group">
-            <label>狀態</label>
-            <select id="p-active" class="admin-select">
-                <option value="TRUE" ${p.isActive !== 'FALSE' ? 'selected' : ''}>在隊</option>
-                <option value="FALSE" ${p.isActive === 'FALSE' ? 'selected' : ''}>離隊</option>
-            </select>
-        </div>
-
-        <button type="submit" class="hero-btn" style="width:100%; margin-top:10px;">儲存</button>
-      </form>
-    </div>
-  `;
-
-  const form = document.getElementById('player-form');
-  if (!form) return;
-
-  form.onsubmit = (e) => {
-    e.preventDefault();
-
-    const styleArr = Array.from(document.querySelectorAll('input[name="p-style"]:checked')).map(cb => cb.value);
-
-    const payload = {
-      rowId: p.rowId || null,
-      name: document.getElementById('p-name').value.trim(),
-      nickname: document.getElementById('p-nick').value.trim(),
-      grade: document.getElementById('p-grade').value,
-      class: document.getElementById('p-class').value.trim(),
-      gender: document.getElementById('p-gender').value,
-      paddle: document.getElementById('p-paddle').value,
-      hand: document.getElementById('p-hand').value,
-      style: styleArr.join('/'),
-      photo: '', // 強制設為空（本階段不使用照片）
-      isActive: document.getElementById('p-active').value
-    };
-
-    if (!payload.name) {
-      showToast('請輸入姓名');
-      return;
-    }
-
-    sendToGasWithAuth('save_player', payload).then(() => {
-      showAdminPlayerList();
-    });
-  };
-}
-
-
 
 
 function showAdminManageSchedule() {
@@ -1780,6 +1559,530 @@ function showAdminSettings() {
         sendToGasWithAuth('update_config', { hero_bg_url: url });
     };
 }
+
+// === Stage 5: 管理後台 - 球員/排程/比賽管理 ===
+
+// 共用：刪除確認
+function confirmDel(action, rowId, name) {
+  if (confirm(`確定要刪除 ${name} 嗎？`)) {
+    sendToGasWithAuth(action, { rowId });
+  }
+}
+
+// --- A) 球員名冊：搜尋 + 年級/班級排序（小→大）+ 摺疊卡片 ---
+function showAdminPlayerList() {
+  const contentDiv = document.getElementById('admin-content');
+  contentDiv.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
+      <h4 style="margin:0; color:var(--primary-color);">球員名冊</h4>
+      <button class="hero-btn" id="btn-add-player" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增</button>
+    </div>
+
+    <div class="admin-form-group" style="margin-bottom:15px;">
+      <input type="text" id="player-search" class="admin-input" placeholder="搜尋姓名、班級、膠皮..." />
+    </div>
+
+    <div id="admin-player-list"></div>
+  `;
+
+  const addBtn = document.getElementById('btn-add-player');
+  if (addBtn) addBtn.onclick = () => renderAdminPlayerForm();
+
+  const searchInput = document.getElementById('player-search');
+  if (searchInput) searchInput.oninput = () => filterAdminPlayerList();
+
+  filterAdminPlayerList(); // 初次渲染
+}
+
+function filterAdminPlayerList() {
+  const keyword = (document.getElementById('player-search')?.value || '').trim().toLowerCase();
+  const listContainer = document.getElementById('admin-player-list');
+  if (!listContainer) return;
+  listContainer.innerHTML = '';
+
+  // 排序：年級(小→大) > 班級(小→大)
+  const sorted = players.slice().sort((a, b) => {
+    const ga = Number(a.grade) || 99;
+    const gb = Number(b.grade) || 99;
+    if (ga !== gb) return ga - gb;
+
+    const ca = Number(String(a.class || '').replace(/\D/g, '')) || 999999;
+    const cb = Number(String(b.class || '').replace(/\D/g, '')) || 999999;
+    if (ca !== cb) return ca - cb;
+
+    return String(a.class || '').localeCompare(String(b.class || ''), 'zh-Hant');
+  });
+
+  const filtered = sorted.filter(p => {
+    if (!keyword) return true;
+    const hay = [
+      p.name, p.nickname,
+      p.grade ? `${p.grade}` : '',
+      p.class ? `${p.class}` : '',
+      p.paddle, p.hand, p.style
+    ].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(keyword);
+  });
+
+  if (filtered.length === 0) {
+    listContainer.innerHTML = '<div style="text-align:center; color:#888;">無符合資料</div>';
+    return;
+  }
+
+  filtered.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'player-card';
+
+    const gradeClass = `${p.grade ? (p.grade + '年') : ''} ${p.class ? (p.class + '班') : ''}`.trim();
+
+    card.innerHTML = `
+      <div class="player-header">
+        <div class="player-info-main">
+          <span class="player-name">${escapeHtml(p.name)}</span>
+          <span class="player-class">${escapeHtml(gradeClass || '未填班級')}</span>
+        </div>
+        <i class="fas fa-chevron-down toggle-icon"></i>
+      </div>
+
+      <div class="player-details">
+        <div class="detail-grid">
+          <div><span class="detail-label">暱稱:</span> ${escapeHtml(p.nickname || '-')}</div>
+          <div><span class="detail-label">性別:</span> ${escapeHtml(p.gender || '-')}</div>
+          <div><span class="detail-label">膠皮:</span> ${escapeHtml(p.paddle || '-')}</div>
+          <div><span class="detail-label">持拍:</span> ${escapeHtml(p.hand || '-')}</div>
+          <div style="grid-column:1/-1"><span class="detail-label">打法:</span> ${escapeHtml(p.style || '-')}</div>
+          <div style="grid-column:1/-1"><span class="detail-label">狀態:</span> <span style="color:${p.isActive==='FALSE'?'red':'green'}">${p.isActive==='FALSE'?'離隊':'在隊'}</span></div>
+        </div>
+
+        <div class="leave-item-actions" style="margin-top:15px;">
+          <button class="action-btn edit"><i class="fas fa-edit"></i> 編輯</button>
+          <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
+        </div>
+      </div>
+    `;
+
+    // 展開/收合
+    const header = card.querySelector('.player-header');
+    if (header) header.onclick = () => card.classList.toggle('expanded');
+
+    // 編輯/刪除
+    const editBtn = card.querySelector('.edit');
+    if (editBtn) editBtn.onclick = (e) => { e.stopPropagation(); renderAdminPlayerForm(p); };
+
+    const delBtn = card.querySelector('.delete');
+    if (delBtn) delBtn.onclick = (e) => { e.stopPropagation(); confirmDel('delete_player', p.rowId, p.name); };
+
+    listContainer.appendChild(card);
+  });
+}
+
+// --- B) 球員表單：移除照片欄位 ---
+function renderAdminPlayerForm(player = null) {
+  const contentDiv = document.getElementById('admin-content');
+  const isEdit = !!player;
+  const p = player || {};
+
+  const paddles = ['平面', '短顆', '中顆', '長顆', 'Anti', '不詳'];
+  const styles = ['刀板', '直板', '日直', '削球'];
+  const grades = [1, 2, 3, 4, 5, 6]; // 小→大
+
+  contentDiv.innerHTML = `
+    <div class="admin-form-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="margin:0; color:var(--primary-color);">${isEdit ? '編輯球員' : '新增球員'}</h3>
+        <button class="action-btn" onclick="showAdminPlayerList()" style="background:#eee; padding:5px 10px;">取消</button>
+      </div>
+
+      <form id="player-form">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="admin-form-group">
+            <label>姓名 *</label>
+            <input type="text" id="p-name" class="admin-input" value="${escapeHtml(p.name||'')}" required>
+          </div>
+          <div class="admin-form-group">
+            <label>暱稱</label>
+            <input type="text" id="p-nick" class="admin-input" value="${escapeHtml(p.nickname||'')}" placeholder="選填">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+          <div class="admin-form-group">
+            <label>年級</label>
+            <select id="p-grade" class="admin-select">
+              <option value="">選</option>
+              ${grades.map(g => `<option value="${g}" ${String(p.grade)==String(g)?'selected':''}>${g}</option>`).join('')}
+            </select>
+          </div>
+          <div class="admin-form-group">
+            <label>班級</label>
+            <input type="text" id="p-class" class="admin-input" value="${escapeHtml(p.class||'')}" placeholder="例：1 或 601">
+          </div>
+          <div class="admin-form-group">
+            <label>性別</label>
+            <select id="p-gender" class="admin-select">
+              <option value="男" ${p.gender==='男'?'selected':''}>男</option>
+              <option value="女" ${p.gender==='女'?'selected':''}>女</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="admin-form-group">
+            <label>膠皮</label>
+            <select id="p-paddle" class="admin-select">
+              <option value="">請選擇</option>
+              ${paddles.map(pd => `<option value="${pd}" ${p.paddle===pd?'selected':''}>${pd}</option>`).join('')}
+            </select>
+          </div>
+          <div class="admin-form-group">
+            <label>持拍</label>
+            <select id="p-hand" class="admin-select">
+              <option value="右手" ${p.hand==='右手'?'selected':''}>右手</option>
+              <option value="左手" ${p.hand==='左手'?'selected':''}>左手</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="admin-form-group">
+          <label>打法 (可複選)</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; padding:10px; background:#f9f9f9; border-radius:8px;">
+            ${styles.map(s => `
+              <label style="display:flex; align-items:center; gap:5px; font-weight:normal; cursor:pointer; font-size:0.9rem;">
+                <input type="checkbox" name="p-style" value="${s}" ${(p.style||'').includes(s)?'checked':''}>
+                ${s}
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="admin-form-group">
+          <label>狀態</label>
+          <select id="p-active" class="admin-select">
+            <option value="TRUE" ${p.isActive!=='FALSE'?'selected':''}>在隊</option>
+            <option value="FALSE" ${p.isActive==='FALSE'?'selected':''}>離隊</option>
+          </select>
+        </div>
+
+        <button type="submit" class="hero-btn" style="width:100%; margin-top:10px;">儲存</button>
+      </form>
+    </div>
+  `;
+
+  document.getElementById('player-form').onsubmit = (e) => {
+    e.preventDefault();
+
+    const styleArr = Array.from(document.querySelectorAll('input[name="p-style"]:checked')).map(cb => cb.value);
+
+    const payload = {
+      rowId: p.rowId || null,
+      name: document.getElementById('p-name').value.trim(),
+      nickname: document.getElementById('p-nick').value.trim(),
+      grade: document.getElementById('p-grade').value,
+      class: document.getElementById('p-class').value.trim(),
+      gender: document.getElementById('p-gender').value,
+      paddle: document.getElementById('p-paddle').value,
+      hand: document.getElementById('p-hand').value,
+      style: styleArr.join('/'),
+      photo: '', // 已移除照片欄位
+      isActive: document.getElementById('p-active').value
+    };
+
+    if (!payload.name) { showToast('請輸入姓名'); return; }
+
+    sendToGasWithAuth('save_player', payload).then(() => {
+      showAdminPlayerList();
+    });
+  };
+}
+
+// --- C) 排程管理：每週固定課表 ---
+function showAdminScheduleList() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
+      <h4 style="margin:0; color:var(--primary-color);">排程管理 (每週固定)</h4>
+      <button class="hero-btn" id="btn-add-schedule" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增</button>
+    </div>
+    <div id="admin-schedule-list" class="leave-list-container"></div>
+  `;
+
+  const addBtn = document.getElementById('btn-add-schedule');
+  if (addBtn) addBtn.onclick = () => renderAdminScheduleForm();
+
+  // 展平所有排程以便列表顯示
+  const flatList = [];
+  weekdays.forEach(d => {
+    defaultSlots.forEach(s => {
+      if (schedule[d] && schedule[d][s] && Array.isArray(schedule[d][s])) {
+        schedule[d][s].forEach(item => flatList.push({ ...item, day: d, slot: s }));
+      }
+    });
+  });
+
+  const listDiv = document.getElementById('admin-schedule-list');
+  if (!listDiv) return;
+
+  if (flatList.length === 0) {
+    listDiv.innerHTML = '<div style="text-align:center;">目前無排程</div>';
+    return;
+  }
+
+  flatList.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'leave-item';
+    card.innerHTML = `
+      <div class="leave-item-header">
+        <div class="leave-item-name">${escapeHtml(item.day)} <span style="font-size:0.9rem; font-weight:normal;">${escapeHtml(item.slot)}</span></div>
+        <div class="leave-item-date">T${escapeHtml(item.table || '-')}</div>
+      </div>
+      <div class="leave-item-reason">
+        教練: ${escapeHtml(item.coach?.name || '-')}<br>
+        選手: ${escapeHtml(item.playerA?.name || '-')} vs ${escapeHtml(item.playerB?.name || '-')}
+      </div>
+      <div class="leave-item-actions">
+        <button class="action-btn edit">編輯</button>
+        <button class="action-btn delete">刪除</button>
+      </div>
+    `;
+
+    const editBtn = card.querySelector('.edit');
+    if (editBtn) editBtn.onclick = () => renderAdminScheduleForm(item);
+
+    const delBtn = card.querySelector('.delete');
+    if (delBtn) delBtn.onclick = () => confirmDel('delete_schedule', item.rowId, '此排程');
+
+    listDiv.appendChild(card);
+  });
+}
+
+function renderAdminScheduleForm(item = null) {
+  const isEdit = !!item;
+  const s = item || {};
+  const content = document.getElementById('admin-content');
+
+  const coachOpts = staff
+    .filter(c => c && c.name)
+    .map(c => `<option value="${escapeHtml(c.id || '')}" ${String(s.coachId||'')===String(c.id||'')?'selected':''}>${escapeHtml(c.name)}</option>`)
+    .join('');
+
+  const playerOpts = players
+    .filter(p => p && p.name)
+    .map(p => `<option value="${escapeHtml(p.id || '')}">${escapeHtml(p.name)}${p.grade?(' ('+escapeHtml(p.grade)+'年)'):''}</option>`)
+    .join('');
+
+  content.innerHTML = `
+    <div class="admin-form-card">
+      <h3 style="margin-top:0;">${isEdit ? '編輯排程' : '新增排程'}</h3>
+      <form id="schedule-form">
+        <div class="admin-form-group"><label>星期</label>
+          <select id="s-day" class="admin-select">${weekdays.map(d => `<option value="${d}" ${s.day===d || s.date===d ? 'selected' : ''}>${d}</option>`).join('')}</select>
+        </div>
+
+        <div class="admin-form-group"><label>時段</label>
+          <select id="s-slot" class="admin-select">${defaultSlots.map(t => `<option value="${t}" ${String(s.slot||'')===String(t)?'selected':''}>${t}</option>`).join('')}</select>
+        </div>
+
+        <div class="admin-form-group"><label>桌次</label>
+          <input type="text" id="s-table" class="admin-input" value="${escapeHtml(s.table||'')}" required>
+        </div>
+
+        <div class="admin-form-group"><label>教練</label>
+          <select id="s-coach" class="admin-select"><option value="">選教練</option>${coachOpts}</select>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="admin-form-group"><label>選手A</label>
+            <select id="s-pa" class="admin-select"><option value="">選選手</option>${playerOpts}</select>
+          </div>
+          <div class="admin-form-group"><label>選手B</label>
+            <select id="s-pb" class="admin-select"><option value="">選選手</option>${playerOpts}</select>
+          </div>
+        </div>
+
+        <div class="admin-form-group"><label>備註</label>
+          <input type="text" id="s-note" class="admin-input" value="${escapeHtml(s.remark||'')}" placeholder="選填">
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="submit" class="hero-btn" style="flex:1;">儲存</button>
+          <button type="button" class="action-btn" style="background:#eee; padding:10px;" onclick="showAdminScheduleList()">取消</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  // 設定選單初始值（以 ID 優先）
+  if (s.coachId) document.getElementById('s-coach').value = s.coachId;
+  if (s.playerAId) document.getElementById('s-pa').value = s.playerAId;
+  if (s.playerBId) document.getElementById('s-pb').value = s.playerBId;
+
+  document.getElementById('schedule-form').onsubmit = (e) => {
+    e.preventDefault();
+
+    const payload = {
+      rowId: s.rowId || null,
+      weekday: document.getElementById('s-day').value,
+      slot: document.getElementById('s-slot').value,
+      table: document.getElementById('s-table').value.trim(),
+      coachId: document.getElementById('s-coach').value,
+      playerAId: document.getElementById('s-pa').value,
+      playerBId: document.getElementById('s-pb').value,
+      note: document.getElementById('s-note').value.trim()
+    };
+
+    sendToGasWithAuth('save_schedule', payload).then(() => showAdminScheduleList());
+  };
+}
+
+// --- D) 比賽紀錄管理：單/雙打切換 + 總分/局分 ---
+function showAdminMatchList() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
+      <h4 style="margin:0; color:var(--primary-color);">比賽紀錄</h4>
+      <button class="hero-btn" id="btn-add-match" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增</button>
+    </div>
+    <div id="admin-match-list" class="leave-list-container"></div>
+  `;
+
+  const addBtn = document.getElementById('btn-add-match');
+  if (addBtn) addBtn.onclick = () => renderAdminMatchForm();
+
+  const listDiv = document.getElementById('admin-match-list');
+  if (!listDiv) return;
+
+  if (!matches || matches.length === 0) {
+    listDiv.innerHTML = '<div style="text-align:center;">無紀錄</div>';
+    return;
+  }
+
+  matches.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'leave-item';
+
+    const pNames = (m.players || []).map(getPlayerName).join('、');
+    const oNames = (m.opponents || []).map(getPlayerName).join('、');
+
+    card.innerHTML = `
+      <div class="leave-item-header">
+        <div class="leave-item-name">${escapeHtml(pNames)} vs ${escapeHtml(oNames)}</div>
+        <div class="leave-item-date">${escapeHtml(m.date || '')}</div>
+      </div>
+      <div class="leave-item-reason">
+        <span class="match-type-badge">${m.type==='singles'?'單打':'雙打'}</span>
+        總分: <b>${escapeHtml(m.score || '-')}</b> (局分: ${escapeHtml(m.sets || '-')} )
+      </div>
+      <div class="leave-item-actions">
+        <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
+      </div>
+    `;
+
+    const delBtn = card.querySelector('.delete');
+    if (delBtn) delBtn.onclick = () => confirmDel('delete_match', m.rowId, '此紀錄');
+
+    listDiv.appendChild(card);
+  });
+}
+
+function toggleMatchType(type) {
+  const teamA = document.getElementById('team-a');
+  const teamB = document.getElementById('team-b');
+  if (!teamA || !teamB) return;
+
+  const playerOpts = players.map(p => `<option value="${escapeHtml(p.id || '')}">${escapeHtml(p.name || '')}</option>`).join('');
+  const createSelect = (id) => `
+    <select id="${id}" class="admin-select" style="margin-bottom:5px;">
+      <option value="">選選手</option>
+      ${playerOpts}
+    </select>
+  `;
+
+  if (type === 'singles') {
+    teamA.innerHTML = createSelect('m-p1');
+    teamB.innerHTML = createSelect('m-o1');
+  } else {
+    teamA.innerHTML = createSelect('m-p1') + createSelect('m-p2');
+    teamB.innerHTML = createSelect('m-o1') + createSelect('m-o2');
+  }
+}
+
+function renderAdminMatchForm() {
+  const content = document.getElementById('admin-content');
+  const today = new Date().toISOString().split('T')[0];
+
+  content.innerHTML = `
+    <div class="admin-form-card">
+      <h3 style="margin-top:0;">新增比賽紀錄</h3>
+      <form id="match-form">
+        <div class="admin-form-group">
+          <label>日期</label>
+          <input type="date" id="m-date" class="admin-input" required value="${today}">
+        </div>
+
+        <div class="admin-form-group">
+          <label>賽制</label>
+          <select id="m-type" class="admin-select">
+            <option value="singles">單打</option>
+            <option value="doubles">雙打</option>
+          </select>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 0.2fr 1fr; gap:5px; align-items:center;">
+          <div id="team-a"></div>
+          <div style="text-align:center;">vs</div>
+          <div id="team-b"></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+          <div class="admin-form-group">
+            <label>總比分 (ex: 3:1)</label>
+            <input type="text" id="m-score" class="admin-input" placeholder="3:1" required>
+          </div>
+          <div class="admin-form-group">
+            <label>局分 (ex: 11-9, 8-11)</label>
+            <input type="text" id="m-sets" class="admin-input" placeholder="各局比分">
+          </div>
+        </div>
+
+        <div class="admin-form-group">
+          <label>影片連結</label>
+          <input type="text" id="m-video" class="admin-input" placeholder="YouTube/Google Drive...">
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="submit" class="hero-btn" style="flex:1;">儲存</button>
+          <button type="button" class="action-btn" style="background:#eee; padding:10px;" onclick="showAdminMatchList()">取消</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  // init selectors
+  toggleMatchType('singles');
+  const typeSel = document.getElementById('m-type');
+  if (typeSel) typeSel.onchange = () => toggleMatchType(typeSel.value);
+
+  document.getElementById('match-form').onsubmit = (e) => {
+    e.preventDefault();
+
+    const type = document.getElementById('m-type').value;
+
+    const payload = {
+      date: document.getElementById('m-date').value,
+      type,
+      p1: document.getElementById('m-p1')?.value || '',
+      p2: type === 'doubles' ? (document.getElementById('m-p2')?.value || '') : '',
+      o1: document.getElementById('m-o1')?.value || '',
+      o2: type === 'doubles' ? (document.getElementById('m-o2')?.value || '') : '',
+      score: document.getElementById('m-score').value.trim(),
+      sets: document.getElementById('m-sets').value.trim(),
+      video: document.getElementById('m-video').value.trim()
+    };
+
+    sendToGasWithAuth('save_match', payload).then(() => showAdminMatchList());
+  };
+}
+
 
 // 讓 onclick 可以穩定找到（在某些環境例如 module/嚴格模式下更安全）
 window.sendToGasWithAuth = sendToGasWithAuth;
@@ -1924,75 +2227,87 @@ function convertDriveLink(url) {
 
 // 將後端回傳的 Excel 欄位轉為前端 UI 變數
 function normalizeData(rawData) {
-  // 取得 Config（容錯：有些後端可能回傳 config 或 hero）
-  const config = rawData.hero || rawData.config || {};
-
-  // 1. 公告
-  const announcements = (rawData.announcements || []).map(r => ({
-    id: r.announcement_id ?? r.id ?? r.rowId,
-    date: formatDate(r.date),
-    title: r.title || '',
-    content: r.content || ''
+  // --- staff ---
+  const staff = (rawData.staff || []).map(r => ({
+    ...r,
+    rowId: r.rowId,
+    id: r.staff_id ?? r.id ?? r.staffId ?? '',
+    name: r.name ?? r.staff_name ?? r.staffName ?? ''
   }));
 
-  // 2. 球員 (注意欄位對應)
+  // --- players ---
   const players = (rawData.players || []).map(r => ({
-    rowId: r.rowId, // 重要：用於編輯/刪除
-    id: r.player_id ?? r.id,
+    rowId: r.rowId,
+    id: r.player_id ?? r.id ?? '',
     name: r.student_name ?? r.name ?? '',
     nickname: r.nickname || '',
     grade: r.grade || '',
     class: r.class || '',
-    number: r.team_no ?? r.number ?? '',  // 原 team_no/number 欄位
-    paddle: r.paddle || r.team_no || '',  // 膠皮特性（若後端尚未提供 paddle，暫用 team_no 相容）
+    paddle: r.paddle || r.team_no || '',
     gender: r.gender || '',
-    hand: r.hand || r.birthdate || '',    // 持拍手（相容舊欄位）
-    style: r.play_style || r.notes || r.positions || '', // 打法（相容舊欄位）
-    photo: convertDriveLink(r.photo_url || r.photo || ''),
+    hand: r.hand || r.birthdate || '',
+    style: r.play_style || r.notes || '',
+    photo: convertDriveLink(r.photo_url ?? r.photo ?? ''), // 前端目前不顯示，但保留欄位相容
     isActive: String(r.is_active || 'TRUE').toUpperCase()
   }));
 
-  // 3. 賽程 (Schedule) - Excel slot 欄位為字串，例如 18:00-19:00
-  const scheduleData = [];
-  (rawData.training_schedule || []).forEach(r => {
-    scheduleData.push({
+  // quick maps for resolving names
+  const staffMap = new Map(staff.map(s => [String(s.id), s]));
+  const playerMap = new Map(players.map(p => [String(p.id), p]));
+
+  // --- schedules ---
+  const scheduleData = (rawData.training_schedule || []).map(r => {
+    const coachId = r.coach_id || '';
+    const paId = r.player_a_id || '';
+    const pbId = r.player_b_id || '';
+    return {
       rowId: r.rowId,
-      date: r.weekday,           // 確保 Excel 填的是 '週一'
-      slot: r.slot,              // 確保 Excel 填的是 '18:00-19:00' 且與 defaultSlots 一致
-      table: r.table_no,
-      coach: { name: r.coach_id },    // 暫時顯示 ID（進階可對照 staff 表）
-      playerA: { name: r.player_a_id },
-      playerB: { name: r.player_b_id },
+      id: r.schedule_id ?? r.id ?? '',
+      date: r.weekday || '',   // 週一~週日
+      day: r.weekday || '',
+      slot: r.slot || '',
+      table: r.table_no || '',
+      coachId,
+      playerAId: paId,
+      playerBId: pbId,
+      coach: staffMap.get(String(coachId)) ? { id: coachId, name: staffMap.get(String(coachId)).name } : (coachId ? { id: coachId, name: coachId } : null),
+      playerA: playerMap.get(String(paId)) ? { id: paId, name: playerMap.get(String(paId)).name } : (paId ? { id: paId, name: paId } : null),
+      playerB: playerMap.get(String(pbId)) ? { id: pbId, name: playerMap.get(String(pbId)).name } : (pbId ? { id: pbId, name: pbId } : null),
       remark: r.note || ''
-    });
+    };
   });
 
-  // 4. 請假
-  const leaveRequests = (rawData.leave_requests || []).map(r => ({
-    id: r.request_id || r.id,
-    rowId: r.rowId, // 用於編輯/刪除
-    // ★ 關鍵修復：對應 Excel 的欄位名稱
-    name: r.created_by_email || r.name || '未填寫',
-    date: formatDate(r.leave_date || r.date),
-    slot: r.slot || '',
-    reason: r.reason || '',
-    status: r.status || 'pending'
-  }));
+  // --- matches ---
+  const matches = (rawData.matches || []).map(r => {
+    const typeRaw = String(r.match_type || '').toLowerCase();
+    const type = typeRaw.includes('double') || typeRaw.includes('雙') ? 'doubles' : 'singles';
 
-  // 5. 比賽紀錄（若後端已回前端格式，直接沿用；否則保持原樣）
-  const matches = rawData.matches || rawData.match_records || rawData.match || [];
+    const p1 = r.player1_id || '';
+    const p2 = r.player2_id || '';
+    const o1 = r.opponent1 || '';
+    const o2 = r.opponent2 || '';
+
+    return {
+      rowId: r.rowId,
+      id: r.match_id ?? r.id ?? '',
+      date: formatDate(r.match_date),
+      type,
+      players: [p1, p2].filter(Boolean),
+      opponents: [o1, o2].filter(Boolean),
+      score: r.game_score || '',
+      sets: r.set_scores || '',
+      video: { url: r.media_url || '' }
+    };
+  });
 
   return {
-    hero: config,
-    announcements,
+    hero: rawData.hero || {},
+    announcements: rawData.announcements || [],
     players,
     schedules: scheduleData,
-    staff: rawData.staff || [],
+    staff,
     matches,
-    leaveRequests,
-    parents: rawData.parents || [],
-    parentChild: rawData.parent_child || rawData.parentChild || [],
-    accounts: rawData.accounts || [],
-    videos: rawData.media || rawData.videos || []
+    leaveRequests: rawData.leave_requests || rawData.leaveRequests || []
   };
 }
+
