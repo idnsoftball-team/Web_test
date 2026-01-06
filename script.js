@@ -413,6 +413,16 @@ function initNavigation() {
     };
   }
 
+  // ★ 新增這段：讓標題也能開關側邊欄
+  const headerTitle = document.querySelector('header h1');
+  if (headerTitle) {
+    headerTitle.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof toggleSidebar === 'function') toggleSidebar();
+    };
+  }
+
   // 4. 遮罩層關閉
   const overlayEl = document.getElementById('overlay');
   if (overlayEl) {

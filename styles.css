@@ -1192,16 +1192,19 @@ header {
 
 /* 標題 (Logo) */
 header h1 {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 900;
   color: white;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  /* 確保文字不會蓋到按鈕 */
-  z-index: 5001;
-  pointer-events: none; /* 讓點擊穿透文字，避免誤觸 */
+
+  /* ★ 新增這兩行 */
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 3002;
 }
 
 /* 按鈕容器 (包含返回鍵與漢堡選單) */
@@ -1487,3 +1490,19 @@ main {
 }
 
 /* 其餘樣式保持不變... */
+
+/* === Tweaks: Header title clickable === */
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  cursor: pointer;       /* 滑鼠移過去變手指 */
+  pointer-events: auto;  /* 確保能接收點擊事件 */
+  position: relative;    /* 配合 z-index */
+  z-index: 3002;         /* 確保比 header 背景高 */
+}
