@@ -315,6 +315,7 @@ async function sendToGasWithAuth(action, payload) {
             // 根據 action 刷新畫面
             if(action.includes('leave')) showAdminLeaveList();
             if(action.includes('config')) renderHome();
+            if(action.includes('player') && typeof showAdminPlayerList === 'function') showAdminPlayerList();
         } else {
             showToast('失敗: ' + result.message);
         }
@@ -1302,7 +1303,10 @@ function renderAdmin() {
   const viewLeaveBtn = document.getElementById('admin-view-leave');
   if (viewLeaveBtn) viewLeaveBtn.onclick = () => showAdminLeaveList();
 
-  const manageScheduleBtn = document.getElementById('admin-manage-schedule');
+  
+    const managePlayersBtn = document.getElementById('admin-manage-players');
+    if (managePlayersBtn) managePlayersBtn.onclick = () => showAdminPlayerList();
+const manageScheduleBtn = document.getElementById('admin-manage-schedule');
   if (manageScheduleBtn) manageScheduleBtn.onclick = () => showAdminManageSchedule();
 
   const settingsBtn = document.getElementById('admin-settings');
@@ -1313,11 +1317,6 @@ function renderAdmin() {
 
   const siteSettingsBtn = document.getElementById('admin-site-settings');
   if (siteSettingsBtn) siteSettingsBtn.onclick = () => showAdminSettings();
-
-
-  // 綁定：球員名冊
-  const managePlayersBtn = document.getElementById('admin-manage-players');
-  if (managePlayersBtn) managePlayersBtn.onclick = () => showAdminPlayerList();
 }
 
 // A. 修復：新增公告後自動清空表單
@@ -1457,24 +1456,29 @@ function showAdminSettings() {
     };
 }
 
-// === 球員管理功能 ===
+// === 球員管理功能 (Stage 5: 緊湊摺疊卡片) ===
 
-// 1. 顯示球員列表
+// A. 球員列表：緊湊摺疊版
 function showAdminPlayerList() {
   const contentDiv = document.getElementById('admin-content');
+  if (!contentDiv) return;
+
   contentDiv.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
       <h4 style="margin:0; color:var(--primary-color);">球員名冊管理</h4>
       <button id="btn-add-player" class="hero-btn" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增球員</button>
     </div>
-    <div id="admin-player-list" class="leave-list-container"></div>
+    <div id="admin-player-list"></div>
   `;
 
-  document.getElementById('btn-add-player').onclick = () => renderAdminPlayerForm(); // 開啟新增表單
+  const addBtn = document.getElementById('btn-add-player');
+  if (addBtn) addBtn.onclick = () => renderAdminPlayerForm();
 
   const listContainer = document.getElementById('admin-player-list');
-  // 依年級排序 (高年級在前)
-  const sortedPlayers = players.slice().sort((a, b) => (b.grade || 0) - (a.grade || 0));
+  if (!listContainer) return;
+
+  // 年級排序（高年級在前）
+  const sortedPlayers = (players || []).slice().sort((a, b) => (Number(b.grade) || 0) - (Number(a.grade) || 0));
 
   if (sortedPlayers.length === 0) {
     listContainer.innerHTML = '<div style="text-align:center; color:#888;">尚無球員資料</div>';
@@ -1483,53 +1487,83 @@ function showAdminPlayerList() {
 
   sortedPlayers.forEach(p => {
     const card = document.createElement('div');
-    card.className = 'leave-item'; // 重用請假卡片樣式
+    card.className = 'player-card';
 
-    // 顯示資訊組合
-    const info = [
-      p.grade ? `${p.grade}年級` : '',
-      p.class ? `${p.class}班` : '',
-      p.paddle ? `(${p.paddle})` : ''
-    ].filter(Boolean).join(' | ');
+    // 組合班級顯示字串（例如：6年 1班）
+    const gradeClass = `${p.grade ? p.grade + '年' : ''} ${p.class ? p.class + '班' : ''}`.trim();
 
     card.innerHTML = `
-      <div class="leave-item-header">
-        <div class="leave-item-name">${escapeHtml(p.name)} <span style="font-size:0.8em; color:#666;">${escapeHtml(p.nickname ? `(${p.nickname})` : '')}</span></div>
-        <div class="leave-item-date" style="background:${p.isActive==='FALSE'?'#eee':'#e3f2fd'}; color:${p.isActive==='FALSE'?'#999':'#0054a6'};">
-           ${p.isActive==='FALSE' ? '離隊' : '在隊'}
+      <div class="player-header">
+        <div class="player-info-main">
+          <span class="player-name">${escapeHtml(p.name || '')}</span>
+          <span class="player-class">${escapeHtml(gradeClass || '未填班級')}</span>
         </div>
+        <i class="fas fa-chevron-down toggle-icon"></i>
       </div>
-      <div class="leave-item-reason">
-        ${escapeHtml(info)}<br>
-        <span style="color:#888; font-size:0.85rem;">
-          ${escapeHtml(p.hand || '-')} / ${escapeHtml(p.style || '-')}
-        </span>
-      </div>
-      <div class="leave-item-actions">
-        <button class="action-btn edit"><i class="fas fa-edit"></i> 編輯</button>
-        <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
+
+      <div class="player-details">
+        <div class="detail-grid">
+           <div><span class="detail-label">暱稱:</span> ${escapeHtml(p.nickname || '-')}</div>
+           <div><span class="detail-label">性別:</span> ${escapeHtml(p.gender || '-')}</div>
+           <div><span class="detail-label">膠皮:</span> ${escapeHtml(p.paddle || '-')}</div>
+           <div><span class="detail-label">持拍:</span> ${escapeHtml(p.hand || '-')}</div>
+           <div style="grid-column:1/-1"><span class="detail-label">打法:</span> ${escapeHtml(p.style || '-')}</div>
+           <div style="grid-column:1/-1"><span class="detail-label">狀態:</span> <span style="color:${p.isActive === 'FALSE' ? 'red' : 'green'}">${p.isActive === 'FALSE' ? '離隊' : '在隊'}</span></div>
+        </div>
+
+        <div class="leave-item-actions" style="margin-top:15px;">
+           <button class="action-btn edit"><i class="fas fa-edit"></i> 編輯</button>
+           <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
+        </div>
       </div>
     `;
 
-    card.querySelector('.edit').onclick = () => renderAdminPlayerForm(p);
-    card.querySelector('.delete').onclick = () => {
-       if(confirm(`確定要刪除球員 ${p.name} 嗎？`)) sendToGasWithAuth('delete_player', { rowId: p.rowId });
-    };
+    // 1) 綁定展開/閉合
+    const header = card.querySelector('.player-header');
+    if (header) {
+      header.onclick = () => {
+        card.classList.toggle('expanded');
+      };
+    }
+
+    // 2) 綁定編輯/刪除（避免觸發收合）
+    const btnEdit = card.querySelector('.edit');
+    const btnDelete = card.querySelector('.delete');
+
+    if (btnEdit) {
+      btnEdit.onclick = (e) => {
+        e.stopPropagation();
+        renderAdminPlayerForm(p);
+      };
+    }
+
+    if (btnDelete) {
+      btnDelete.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`確定要刪除球員 ${p.name} 嗎？`)) {
+          sendToGasWithAuth('delete_player', { rowId: p.rowId }).then(() => {
+            // 重新渲染列表（以防後端刪除成功但畫面未刷新）
+            showAdminPlayerList();
+          });
+        }
+      };
+    }
 
     listContainer.appendChild(card);
   });
 }
 
-// 2. 顯示球員新增/編輯表單
+// B. 球員表單：已移除照片欄位
 function renderAdminPlayerForm(player = null) {
   const contentDiv = document.getElementById('admin-content');
+  if (!contentDiv) return;
+
   const isEdit = !!player;
   const p = player || {};
 
-  // 選項定義
   const paddles = ['平面', '短顆', '中顆', '長顆', 'Anti', '不詳'];
   const styles = ['刀板', '直板', '日直', '削球'];
-  const grades = [6, 5, 4, 3, 2, 1]; // 倒序方便點選
+  const grades = [6, 5, 4, 3, 2, 1];
 
   contentDiv.innerHTML = `
     <div class="admin-form-card">
@@ -1542,11 +1576,11 @@ function renderAdminPlayerForm(player = null) {
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div class="admin-form-group">
                 <label>姓名 *</label>
-                <input type="text" id="p-name" class="admin-input" value="${escapeHtml(p.name||'')}" required>
+                <input type="text" id="p-name" class="admin-input" value="${escapeHtml(p.name || '')}" required>
             </div>
             <div class="admin-form-group">
                 <label>暱稱</label>
-                <input type="text" id="p-nick" class="admin-input" value="${escapeHtml(p.nickname||'')}" placeholder="選填">
+                <input type="text" id="p-nick" class="admin-input" value="${escapeHtml(p.nickname || '')}" placeholder="選填">
             </div>
         </div>
 
@@ -1554,46 +1588,46 @@ function renderAdminPlayerForm(player = null) {
             <div class="admin-form-group">
                 <label>年級</label>
                 <select id="p-grade" class="admin-select">
-                    <option value="">請選擇</option>
-                    ${grades.map(g => `<option value="${g}" ${p.grade==g?'selected':''}>${g}年級</option>`).join('')}
+                    <option value="">選</option>
+                    ${grades.map(g => `<option value="${g}" ${String(p.grade) == String(g) ? 'selected' : ''}>${g}</option>`).join('')}
                 </select>
             </div>
             <div class="admin-form-group">
                 <label>班級</label>
-                <input type="text" id="p-class" class="admin-input" value="${escapeHtml(p.class||'')}" placeholder="例: 601">
+                <input type="text" id="p-class" class="admin-input" value="${escapeHtml(p.class || '')}" placeholder="601">
             </div>
             <div class="admin-form-group">
                 <label>性別</label>
                 <select id="p-gender" class="admin-select">
-                    <option value="男" ${p.gender==='男'?'selected':''}>男</option>
-                    <option value="女" ${p.gender==='女'?'selected':''}>女</option>
+                    <option value="男" ${p.gender === '男' ? 'selected' : ''}>男</option>
+                    <option value="女" ${p.gender === '女' ? 'selected' : ''}>女</option>
                 </select>
             </div>
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div class="admin-form-group">
-                <label>膠皮特性</label>
+                <label>膠皮</label>
                 <select id="p-paddle" class="admin-select">
                     <option value="">請選擇</option>
-                    ${paddles.map(pd => `<option value="${pd}" ${p.paddle===pd?'selected':''}>${pd}</option>`).join('')}
+                    ${paddles.map(pd => `<option value="${pd}" ${p.paddle === pd ? 'selected' : ''}>${pd}</option>`).join('')}
                 </select>
             </div>
             <div class="admin-form-group">
-                <label>持拍手</label>
+                <label>持拍</label>
                 <select id="p-hand" class="admin-select">
-                    <option value="右手" ${p.hand==='右手'?'selected':''}>右手</option>
-                    <option value="左手" ${p.hand==='左手'?'selected':''}>左手</option>
+                    <option value="右手" ${p.hand === '右手' ? 'selected' : ''}>右手</option>
+                    <option value="左手" ${p.hand === '左手' ? 'selected' : ''}>左手</option>
                 </select>
             </div>
         </div>
 
         <div class="admin-form-group">
-            <label>打法 (可複選)</label>
-            <div style="display:flex; gap:15px; flex-wrap:wrap; padding:10px; background:#f9f9f9; border-radius:8px;">
+            <label>打法</label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; padding:10px; background:#f9f9f9; border-radius:8px;">
                 ${styles.map(s => `
-                    <label style="display:flex; align-items:center; gap:5px; font-weight:normal; cursor:pointer;">
-                        <input type="checkbox" name="p-style" value="${s}" ${(p.style||'').includes(s)?'checked':''}>
+                    <label style="display:flex; align-items:center; gap:5px; font-weight:normal; cursor:pointer; font-size:0.9rem;">
+                        <input type="checkbox" name="p-style" value="${s}" ${(p.style || '').includes(s) ? 'checked' : ''}>
                         ${s}
                     </label>
                 `).join('')}
@@ -1601,47 +1635,47 @@ function renderAdminPlayerForm(player = null) {
         </div>
 
         <div class="admin-form-group">
-            <label>照片連結 (Drive Link)</label>
-            <input type="text" id="p-photo" class="admin-input" value="${escapeHtml(p.photo||'')}" placeholder="請貼上 Google Drive 連結">
-        </div>
-
-        <div class="admin-form-group">
             <label>狀態</label>
             <select id="p-active" class="admin-select">
-                <option value="TRUE" ${p.isActive!=='FALSE'?'selected':''}>在隊</option>
-                <option value="FALSE" ${p.isActive==='FALSE'?'selected':''}>離隊 (封存)</option>
+                <option value="TRUE" ${p.isActive !== 'FALSE' ? 'selected' : ''}>在隊</option>
+                <option value="FALSE" ${p.isActive === 'FALSE' ? 'selected' : ''}>離隊</option>
             </select>
         </div>
 
-        <button type="submit" class="hero-btn" style="width:100%; margin-top:10px;">儲存資料</button>
+        <button type="submit" class="hero-btn" style="width:100%; margin-top:10px;">儲存</button>
       </form>
     </div>
   `;
 
-  // 綁定表單送出
-  document.getElementById('player-form').onsubmit = (e) => {
+  const form = document.getElementById('player-form');
+  if (!form) return;
+
+  form.onsubmit = (e) => {
     e.preventDefault();
-    // 蒐集複選打法
+
     const styleArr = Array.from(document.querySelectorAll('input[name="p-style"]:checked')).map(cb => cb.value);
 
     const payload = {
-        rowId: p.rowId || null,
-        name: document.getElementById('p-name').value.trim(),
-        nickname: document.getElementById('p-nick').value.trim(),
-        grade: document.getElementById('p-grade').value,
-        class: document.getElementById('p-class').value.trim(),
-        gender: document.getElementById('p-gender').value,
-        paddle: document.getElementById('p-paddle').value,
-        hand: document.getElementById('p-hand').value,
-        style: styleArr.join('/'), // 用斜線分隔存入
-        photo: document.getElementById('p-photo').value.trim(),
-        isActive: document.getElementById('p-active').value
+      rowId: p.rowId || null,
+      name: document.getElementById('p-name').value.trim(),
+      nickname: document.getElementById('p-nick').value.trim(),
+      grade: document.getElementById('p-grade').value,
+      class: document.getElementById('p-class').value.trim(),
+      gender: document.getElementById('p-gender').value,
+      paddle: document.getElementById('p-paddle').value,
+      hand: document.getElementById('p-hand').value,
+      style: styleArr.join('/'),
+      photo: '', // 強制設為空（本階段不使用照片）
+      isActive: document.getElementById('p-active').value
     };
 
-    if(!payload.name) { showToast('請輸入姓名'); return; }
+    if (!payload.name) {
+      showToast('請輸入姓名');
+      return;
+    }
 
     sendToGasWithAuth('save_player', payload).then(() => {
-        showAdminPlayerList(); // 成功後返回列表
+      showAdminPlayerList();
     });
   };
 }
@@ -1902,26 +1936,21 @@ function normalizeData(rawData) {
   }));
 
   // 2. 球員 (注意欄位對應)
-  
-  // 2. 球員 (更新欄位對應，支援名冊管理)
   const players = (rawData.players || []).map(r => ({
-    rowId: r.rowId,
+    rowId: r.rowId, // 重要：用於編輯/刪除
     id: r.player_id ?? r.id,
     name: r.student_name ?? r.name ?? '',
     nickname: r.nickname || '',
     grade: r.grade || '',
     class: r.class || '',
-    paddle: r.paddle || r.team_no || '', // 膠皮
+    number: r.team_no ?? r.number ?? '',  // 原 team_no/number 欄位
+    paddle: r.paddle || r.team_no || '',  // 膠皮特性（若後端尚未提供 paddle，暫用 team_no 相容）
     gender: r.gender || '',
-    hand: r.hand || r.birthdate || '',   // 持拍
-    style: r.play_style || r.notes || '', // 打法
-    // 保留既有前台顯示用的 number（僅在 team_no 為純數字時才帶入）
-    number: (r.team_no && /^\d+$/.test(String(r.team_no))) ? String(r.team_no) : (r.number || ''),
-    photo: convertDriveLink(r.photo_url || ''),
-    isActive: String(r.is_active || r.isActive || 'TRUE').toUpperCase()
+    hand: r.hand || r.birthdate || '',    // 持拍手（相容舊欄位）
+    style: r.play_style || r.notes || r.positions || '', // 打法（相容舊欄位）
+    photo: convertDriveLink(r.photo_url || r.photo || ''),
+    isActive: String(r.is_active || 'TRUE').toUpperCase()
   }));
-
-
 
   // 3. 賽程 (Schedule) - Excel slot 欄位為字串，例如 18:00-19:00
   const scheduleData = [];

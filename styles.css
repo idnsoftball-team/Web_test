@@ -1506,3 +1506,105 @@ header h1 {
   position: relative;    /* 配合 z-index */
   z-index: 3002;         /* 確保比 header 背景高 */
 }
+
+/* === Stage 5: 球員名冊 - 緊湊型摺疊卡片 === */
+.player-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  margin-bottom: 10px;
+  overflow: hidden;
+  border-left: 5px solid var(--primary-color);
+  transition: all 0.3s ease;
+}
+
+/* 卡片頭部 (預設顯示區域) */
+.player-header {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer; /* 手指游標 */
+  background: #fff;
+  user-select: none; /* 防止連點選取文字 */
+}
+
+.player-header:active {
+  background: #f5f5f5;
+}
+
+/* 姓名與班級區 */
+.player-info-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.player-class {
+  font-size: 0.9rem;
+  color: #555;
+  background: #f0f2f5;
+  padding: 3px 10px;
+  border-radius: 15px;
+  font-weight: 500;
+}
+
+/* 展開箭頭動畫 */
+.toggle-icon {
+  color: #aaa;
+  transition: transform 0.3s ease;
+}
+
+.player-card.expanded .toggle-icon {
+  transform: rotate(180deg); /* 展開時旋轉 */
+}
+
+/* 詳細資料區 (預設隱藏) */
+.player-details {
+  display: none;
+  padding: 0 16px 16px 16px;
+  background: #fafafa;
+  border-top: 1px dashed #eee;
+}
+
+.player-card.expanded .player-details {
+  display: block; /* 展開時顯示 */
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 詳細資料網格排版 */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 兩欄排版 */
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.detail-label {
+  color: #999;
+  font-size: 0.85rem;
+  margin-right: 5px;
+}
+
+
+
+/* === Header layout helper (for .header-left structure) === */
+.header-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  height:100%;
+}
