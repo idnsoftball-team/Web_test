@@ -1348,44 +1348,57 @@ function showAdminAddAnnouncement() {
 
 
 // A. 顯示管理後台：請假列表 (含編輯/刪除按鈕)
+// ★ 更新：管理後台 - 請假列表 (卡片式檢視，無左右捲軸) 
 function showAdminLeaveList() {
   const contentDiv = document.getElementById('admin-content');
-  contentDiv.innerHTML = '<h4>全部請假紀錄</h4><div class="table-responsive"><table class="admin-table" id="admin-leave-table"></table></div>';
+  // 清空並重建容器
+  contentDiv.innerHTML = `
+    <h4 style="margin-bottom:15px; color:var(--primary-color); border-bottom:2px solid #eee; padding-bottom:10px;">
+      全部請假紀錄
+    </h4>
+    <div id="admin-leave-list" class="leave-list-container"></div>
+  `;
 
   const list = loadLeaveRequests();
-  const table = document.getElementById('admin-leave-table');
+  const listContainer = document.getElementById('admin-leave-list');
 
   if (!list || list.length === 0) {
-    contentDiv.innerHTML += '<p style="color:#888;">尚無請假紀錄</p>';
+    listContainer.innerHTML = '<div class="card" style="text-align:center; color:#888; padding:20px;">目前尚無請假紀錄</div>';
     return;
   }
 
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th>姓名</th><th>日期</th><th>時段</th><th>原因</th><th>操作</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  `;
-
-  const tbody = table.querySelector('tbody');
-
+  // 渲染卡片列表
   list.forEach(item => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(item.name)}</td>
-      <td>${escapeHtml(item.date)}</td>
-      <td>${escapeHtml(item.slot)}</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.reason)}</td>
-      <td>
-        <button class="btn-icon edit" title="編輯"><i class="fas fa-edit"></i></button>
-        <button class="btn-icon delete" title="刪除"><i class="fas fa-trash-alt"></i></button>
-      </td>
+    const card = document.createElement('div');
+    card.className = 'leave-item';
+
+    card.innerHTML = `
+      <div class="leave-item-header">
+        <div class="leave-item-name">${escapeHtml(item.name)}</div>
+        <div class="leave-item-date">
+          ${escapeHtml(item.date)} <br> 
+          <span style="font-size:0.8em; opacity:0.8;">${escapeHtml(item.slot)}</span>
+        </div>
+      </div>
+
+      <div class="leave-item-reason">
+        <span style="color:#888; font-size:0.8em;">事由：</span><br>
+        ${escapeHtml(item.reason)}
+      </div>
+
+      <div class="leave-item-actions">
+        <button class="action-btn edit">
+          <i class="fas fa-edit"></i> 編輯
+        </button>
+        <button class="action-btn delete">
+          <i class="fas fa-trash-alt"></i> 刪除
+        </button>
+      </div>
     `;
 
-    const btnEdit = tr.querySelector('.edit');
-    const btnDelete = tr.querySelector('.delete');
+    // 綁定按鈕事件
+    const btnEdit = card.querySelector('.edit');
+    const btnDelete = card.querySelector('.delete');
 
     btnEdit.onclick = () => {
        const newReason = prompt('修改請假原因：', item.reason);
@@ -1406,9 +1419,10 @@ function showAdminLeaveList() {
         }
     };
 
-    tbody.appendChild(tr);
+    listContainer.appendChild(card);
   });
 }
+
 
 
 // B. 新增：網站設定 (Hero Banner)

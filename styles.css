@@ -1049,3 +1049,119 @@ header {
 .leave-item.has-checkbox {
   padding-right: 40px;
 }
+
+
+/* ============================================================
+   Patch v10: Header click fix + Admin leave card actions
+   (Appended to override previous definitions)
+   ============================================================ */
+
+/* === 1. 修復 Header 點擊失效 (關鍵修正) === */
+header {
+  position: fixed; /* 強制固定在視窗頂部 */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px; /* 明確指定高度 */
+  z-index: 3000 !important; /* 最高層級 */
+  background: var(--primary-gradient);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+}
+
+/* 確保按鈕本身可以被點擊 */
+#menu-toggle {
+  position: relative;
+  z-index: 3001;
+  cursor: pointer;
+  padding: 10px; /* 增加點擊範圍 */
+  margin-right: -10px; /* 修正視覺位置 */
+}
+
+/* 為了避免內容被 fixed header 蓋住，main 要往下推 */
+main {
+  margin-top: 70px; /* 60px header + 10px gap */
+  padding-bottom: 80px;
+}
+
+/* === 2. 管理後台：請假卡片樣式 (無捲軸版) === */
+.leave-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leave-item {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border-left: 5px solid var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.leave-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.leave-item-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.leave-item-date {
+  font-size: 0.85rem;
+  color: #555;
+  background: #f0f2f5;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.leave-item-reason {
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.5;
+  background: #fafafa;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+/* 管理後台專用：卡片底部的操作列 */
+.leave-item-actions {
+  border-top: 1px dashed #eee;
+  padding-top: 10px;
+  margin-top: 5px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.action-btn.edit { color: var(--primary-color); }
+.action-btn.edit:hover { background: rgba(0, 84, 166, 0.1); }
+
+.action-btn.delete { color: #e74c3c; }
+.action-btn.delete:hover { background: rgba(231, 76, 60, 0.1); }
