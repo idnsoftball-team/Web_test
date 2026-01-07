@@ -1,10 +1,9 @@
-// script.js - v14.0 (Force POST Fetch)
-const APP_VERSION = '14.0'; 
-// ★★★ 請確認網址 ★★★
+// script.js - v16.0 Final
+const APP_VERSION = '16.0'; 
+// ★ 請填入您最新的 Web App URL
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
 
-// Global Data
-let announcements = [], schedule = {}, players = [], staff = [], matches = [], leaveRequestsData = [];
+let announcements=[], schedule={}, players=[], staff=[], matches=[], leaveRequestsData=[];
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const defaultSlots = ['17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00'];
 
@@ -21,17 +20,19 @@ function initEmptySchedule() {
 }
 initEmptySchedule();
 
-// ★★★ 核心修正：強制使用 POST 讀取資料 ★★★
+// === 資料讀取 ===
 async function loadAllData() {
   const loader = document.getElementById('app-loader');
   try {
     const res = await fetch(GAS_API_URL, {
-      method: 'POST', // 改用 POST
+      method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'get_all_data' })
     });
     const data = await res.json();
     console.log("Data:", data);
+
+    if (data.status === 'error') throw new Error(data.message);
 
     const norm = normalizeData(data);
     announcements = norm.announcements;
@@ -51,29 +52,35 @@ async function loadAllData() {
     renderHome();
   } catch (e) {
     console.error(e);
-    document.getElementById('loader-text').innerText = "連線失敗，請重整";
+    const msg = document.getElementById('loader-text');
+    if(msg) msg.innerText = "連線失敗，請確認 GAS 權限為「任何人」";
   } finally {
     if(loader) setTimeout(()=>loader.style.display='none', 500);
   }
 }
 
+// === 資料對應 (Mapping) ===
 function normalizeData(data) {
   const getVal = (obj, keys) => { for (const k of keys) if (obj[k]) return obj[k]; return ""; };
   
+  // 公告 (title, date, content) [cite: 84]
   const anns = (data.announcements||[]).map(r => ({
     title: getVal(r, ['title', 'announcement_title']),
     date: (getVal(r, ['date', 'announcement_date']) || '').split('T')[0],
     content: getVal(r, ['content', 'announcement_content'])
   })).filter(a=>a.title);
 
+  // 教練 (staff_id, name) [cite: 75]
   const mapStaff = (data.staff||[]).map(r => ({ id: String(r.staff_id||r.id), name: r.name||'教練' }));
   
+  // 球員 (player_id, student_name) [cite: 72]
   const mapPlayers = (data.players||[]).map(r => ({
     id: String(r.player_id||r.id),
-    name: r.student_name||'未命名',
+    name: getVal(r, ['student_name', 'name']),
     grade: r.grade, class: r.class, paddle: r.paddle
   }));
 
+  // 排程 (weekday, slot) [cite: 77]
   const schedules = (data.training_schedule||[]).map(r => {
     const cId = String(r.coach_id||'');
     const paId = String(r.player_a_id||'');
@@ -86,18 +93,20 @@ function normalizeData(data) {
     };
   });
 
+  // 請假 (created_by_email 用作姓名, leave_date) [cite: 78]
   const leaves = (data.leave_requests||[]).map(r => ({
     rowId: r.rowId,
-    name: r.created_by_email||'未知',
-    date: (r.leave_date||'').split('T')[0],
+    name: getVal(r, ['created_by_email', 'name']) || '未知',
+    date: (getVal(r, ['leave_date', 'date']) || '').split('T')[0],
     slot: r.slot||'', reason: r.reason||''
   }));
 
+  // 比賽 (match_date, match_type, game_score) [cite: 79]
   const mapMatches = (data.matches||[]).map(r => ({
     rowId: r.rowId,
-    date: (r.match_date||'').split('T')[0],
-    type: (r.match_type||'').includes('雙')?'doubles':'singles',
-    score: r.game_score||'',
+    date: (getVal(r, ['match_date', 'date']) || '').split('T')[0],
+    type: (getVal(r, ['match_type', 'type'])||'').includes('雙')?'doubles':'singles',
+    score: getVal(r, ['game_score', 'score'])||'',
     sets: r.set_scores||'',
     players: [r.player1_id, r.player2_id].filter(Boolean),
     opponents: [r.opponent1, r.opponent2].filter(Boolean),
@@ -107,7 +116,7 @@ function normalizeData(data) {
   return { announcements: anns, staff: mapStaff, players: mapPlayers, schedules, leaveRequests: leaves, matches: mapMatches, hero: data.hero||{} };
 }
 
-// Render Functions
+// === Renderers ===
 function renderHome() {
   const bg = window.heroConfig?.hero_bg_url;
   if(bg) document.querySelector('.hero-bg-placeholder').style.backgroundImage = `url(${convertDriveLink(bg)})`;
@@ -130,7 +139,9 @@ function renderHome() {
 function renderAnnouncements() {
     const d = document.getElementById('announcement-list');
     d.innerHTML = '';
-    announcements.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(a => {
+    const list = announcements.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+    if(list.length===0) { d.innerHTML='<div style="text-align:center;padding:20px">無公告</div>'; return; }
+    list.forEach(a => {
         d.innerHTML += `<div class="card" onclick="showAnnouncementDetail('${escapeHtml(a.title)}','${a.date}','${escapeHtml(a.content)}')">
             <div style="display:flex;justify-content:space-between;"><h4 style="margin:0">${escapeHtml(a.title)}</h4><span style="font-size:0.8rem;color:#888">${a.date}</span></div>
             <p style="margin-top:8px;color:#555">${escapeHtml(a.content)}</p>
@@ -272,28 +283,7 @@ function openVideoModal(id) {
 }
 function hideModal() { document.querySelectorAll('.modal').forEach(m=>{m.classList.remove('active');m.style.background='';m.style.padding='';}); document.body.classList.remove('modal-open'); }
 
-// Init
-function initNavigation() {
-    const nav = (id) => {
-        document.querySelectorAll('main>section').forEach(s=>s.classList.add('hidden'));
-        document.getElementById(id).classList.remove('hidden');
-        if(id==='announcements') renderAnnouncements();
-        if(id==='schedule') renderSchedule();
-        if(id==='matches') renderMatches();
-        if(id==='roster') renderRoster();
-        if(id==='leave') renderLeaveList();
-        if(id==='media') renderMedia();
-        if(id==='admin') renderAdmin();
-        document.body.classList.remove('sidebar-open');
-        document.querySelectorAll('nav a, #bottom-nav button').forEach(e=>e.classList.remove('active'));
-        document.querySelectorAll(`[data-section="${id}"]`).forEach(e=>e.classList.add('active'));
-    };
-    document.querySelectorAll('[data-section]').forEach(e=>e.onclick=(ev)=>{ev.preventDefault(); nav(e.dataset.section);});
-    document.getElementById('menu-toggle').onclick=()=>document.body.classList.toggle('sidebar-open');
-    document.getElementById('overlay').onclick=()=>document.body.classList.remove('sidebar-open');
-}
-
-// Admin
+// Admin Logic
 function renderAdmin() {
     if(!sessionStorage.getItem('adm')) {
         document.getElementById('admin-login').classList.remove('hidden');
@@ -302,7 +292,7 @@ function renderAdmin() {
             const p = document.getElementById('admin-password').value;
             const res = await fetch(GAS_API_URL, {method:'POST', body:JSON.stringify({action:'check_auth',password:p})});
             const j = await res.json();
-            if(j.success) { sessionStorage.setItem('adm',p); renderAdmin(); } else { alert('密碼錯誤'); }
+            if(j.success) { sessionStorage.setItem('adm',p); renderAdmin(); showToast('登入成功'); } else { alert('密碼錯誤'); }
         };
     } else {
         document.getElementById('admin-login').classList.add('hidden');
@@ -329,6 +319,35 @@ window.delLeave = async (id) => {
         alert('已刪除'); loadAllData();
     }
 };
+
+function navigateTo(id, push=true) {
+    document.querySelectorAll('main>section').forEach(s => { s.classList.add('hidden'); s.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if(target) {
+        target.classList.remove('hidden'); 
+        target.classList.add('active');
+        if(id==='announcements') renderAnnouncements(); 
+        if(id==='schedule') renderSchedule();
+        if(id==='matches') renderMatches();
+        if(id==='roster') renderRoster();
+        if(id==='leave') renderLeaveList();
+        if(id==='media') renderMedia();
+        if(id==='admin') renderAdmin();
+    }
+    if(push) history.pushState({section:id},'',`#${id}`);
+    document.querySelectorAll('nav a, #bottom-nav button').forEach(el => {
+        el.classList.remove('active');
+        if(el.dataset.section === id) el.classList.add('active');
+    });
+}
+
+function initNavigation() {
+    document.querySelectorAll('[data-section]').forEach(e => {
+        e.onclick = (ev) => { ev.preventDefault(); navigateTo(e.dataset.section); document.body.classList.remove('sidebar-open'); }
+    });
+    document.getElementById('menu-toggle').onclick = () => document.body.classList.toggle('sidebar-open');
+    document.getElementById('overlay').onclick = () => document.body.classList.remove('sidebar-open');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAppVersion(); loadAllData(); initNavigation();
