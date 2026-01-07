@@ -1,12 +1,11 @@
-// script.js - v17.0
-const APP_VERSION = '17.0'; 
-// ★★★ 請替換成您最新的 Web App URL ★★★
+// script.js - v20.0 Final (GET Read / POST Write)
+
+const APP_VERSION = '20.0';
+
+// ★★★ 請貼上您剛剛「測試成功」的那串 GAS 網址 (不要帶 ?action=...) ★★★
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
 
-// ... (以下內容與 v15.0 相同，請直接使用) ...
-// 為了避免重複，請使用您手上的 v15.0/v16.0 內容，但請務必確認網址。
-// 關鍵：如果 GAS 權限已改為「任何人」，這裡的 POST 就會成功。
-
+// Global Data
 let announcements=[], schedule={}, players=[], staff=[], matches=[], leaveRequestsData=[];
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const defaultSlots = ['17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00'];
@@ -24,18 +23,19 @@ function initEmptySchedule() {
 }
 initEmptySchedule();
 
+// ★★★ 讀取資料：改用 GET (配合您測試成功的結果) ★★★
 async function loadAllData() {
   const loader = document.getElementById('app-loader');
   try {
-    const res = await fetch(GAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'get_all_data' })
-    });
+    // 加入時間戳記 t=... 防止瀏覽器快取舊資料
+    const fetchUrl = `${GAS_API_URL}?action=get_all_data&t=${new Date().getTime()}`;
+    console.log("Fetching:", fetchUrl);
     
+    const res = await fetch(fetchUrl);
     const text = await res.text();
-    // 檢查權限錯誤
-    if (text.trim().startsWith('<')) throw new Error("權限錯誤：GAS 必須設為「任何人」");
+    
+    // 雙重確認非 HTML
+    if (text.trim().startsWith('<')) throw new Error("權限錯誤：請確認 GAS 部署為「任何人」");
 
     const data = JSON.parse(text);
     if (data.status === 'error') throw new Error(data.message);
@@ -55,16 +55,18 @@ async function loadAllData() {
       if (!schedule[d][s]) schedule[d][s] = [];
       schedule[d][s].push(item);
     });
+    
     renderHome();
   } catch (e) {
     console.error(e);
     const msg = document.getElementById('loader-text');
-    if(msg) msg.innerText = "連線失敗：" + e.message;
+    if(msg) msg.innerText = "載入失敗：" + e.message;
   } finally {
     if(loader) setTimeout(()=>loader.style.display='none', 500);
   }
 }
 
+// 資料對應 (依據 CSV)
 function normalizeData(data) {
   const getVal = (obj, keys) => { for (const k of keys) if (obj[k]) return obj[k]; return ""; };
   const anns = (data.announcements||[]).map(r => ({
@@ -72,12 +74,15 @@ function normalizeData(data) {
     date: (getVal(r, ['date', 'announcement_date']) || '').split('T')[0],
     content: getVal(r, ['content', 'announcement_content'])
   })).filter(a=>a.title);
+  
   const mapStaff = (data.staff||[]).map(r => ({ id: String(r.staff_id||r.id), name: r.name||'教練' }));
+  
   const mapPlayers = (data.players||[]).map(r => ({
     id: String(r.player_id||r.id),
     name: getVal(r, ['student_name', 'name']),
     grade: r.grade, class: r.class, paddle: r.paddle
   }));
+
   const schedules = (data.training_schedule||[]).map(r => {
     const cId = String(r.coach_id||'');
     const paId = String(r.player_a_id||'');
@@ -89,12 +94,14 @@ function normalizeData(data) {
       playerB: mapPlayers.find(p=>p.id===pbId)||{name:pbId}
     };
   });
+
   const leaves = (data.leave_requests||[]).map(r => ({
     rowId: r.rowId,
     name: getVal(r, ['created_by_email', 'name']) || '未知',
     date: (getVal(r, ['leave_date', 'date']) || '').split('T')[0],
     slot: r.slot||'', reason: r.reason||''
   }));
+
   const mapMatches = (data.matches||[]).map(r => ({
     rowId: r.rowId,
     date: (getVal(r, ['match_date', 'date']) || '').split('T')[0],
@@ -105,9 +112,11 @@ function normalizeData(data) {
     opponents: [r.opponent1, r.opponent2].filter(Boolean),
     video: { url: r.media_url }
   }));
+
   return { announcements: anns, staff: mapStaff, players: mapPlayers, schedules, leaveRequests: leaves, matches: mapMatches, hero: data.hero||{} };
 }
 
+// Renderers
 function renderHome() {
   const bg = window.heroConfig?.hero_bg_url;
   if(bg) document.querySelector('.hero-bg-placeholder').style.backgroundImage = `url(${convertDriveLink(bg)})`;
@@ -151,13 +160,17 @@ function escapeHtml(t) { return t?String(t).replace(/&/g,'&amp;').replace(/</g,'
 function convertDriveLink(u) { if(!u)return''; if(u.includes('googleusercontent'))return u; const m=u.match(/\/d\/([a-zA-Z0-9_-]+)/); return m?`https://drive.google.com/uc?export=view&id=${m[1]}`:u; }
 function getYouTubeID(u) { const m=u.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/); return (m&&m[1].length===11)?m[1]:null; }
 function showToast(m) { const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className='toast show'; t.innerText=m; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
-function showAnnouncementDetail(title,date,content) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button><h3 style="margin-top:10px;color:#0054a6">${title}</h3><div style="color:#888;font-size:0.85rem;margin-bottom:15px;border-bottom:1px dashed #eee;padding-bottom:10px">${date}</div><div style="line-height:1.8;color:#333;white-space:pre-wrap">${content}</div>`; document.body.classList.add('modal-open'); m.classList.add('active'); }
-function showMatchDetail(m) { const d=document.getElementById('player-analysis'); const p=m.players.map(getPlayerName).join(' & '); const o=m.opponents.map(getPlayerName).join(' & '); d.innerHTML=`<button class="btn-close-absolute" onclick="document.getElementById('player-analysis').classList.add('hidden')"><i class="fas fa-times"></i></button><h3 style="margin:0 0 10px 0;color:#0054a6">比賽詳情</h3><div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:10px"><div style="font-weight:bold;font-size:1.1rem;margin-bottom:5px">${p} <span style="color:#e74c3c">VS</span> ${o}</div><div style="color:#666;font-size:0.9rem">${m.date} | ${m.type}</div><div style="margin-top:5px;font-weight:bold;color:#003366;font-size:1.2rem">比分: ${m.score}</div></div>${m.video.url?`<div style="margin-top:10px"><button class="hero-btn" style="width:100%" onclick="window.open('${m.video.url}','_blank')">觀看影片</button></div>`:''}`; d.classList.remove('hidden'); }
+function showAnnouncementDetail(title,date,content) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button><h3 style="margin:0 0 10px 0;color:#0054a6">${title}</h3><div style="color:#888;font-size:0.85rem;margin-bottom:15px;border-bottom:1px dashed #eee;padding-bottom:10px">${date}</div><div style="line-height:1.8;color:#333;white-space:pre-wrap">${content}</div>`; document.body.classList.add('modal-open'); m.classList.add('active'); }
+function showMatchDetail(m) { const d=document.getElementById('player-analysis'); const p=m.players.map(getPlayerName).join(' & '); const o=m.opponents.map(getPlayerName).join(' & '); d.innerHTML=`<button class="btn-close-absolute" onclick="document.getElementById('player-analysis').classList.add('hidden')"><i class="fas fa-times"></i></button><h3 style="margin:0 0 10px 0;color:#0054a6">比賽詳情</h3><div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:10px"><div style="font-weight:bold;font-size:1.1rem;margin-bottom:5px">${p} <span style="color:#e74c3c">VS</span> ${o}</div><div style="color:#666;font-size:0.9rem">${m.date} | ${m.type}</div><div style="margin-top:5px;font-weight:bold;color:#003366;font-size:1.2rem">比分: ${m.score}</div></div>${m.video.url?`<div style="margin-top:10px;"><button class="hero-btn" style="width:100%" onclick="window.open('${m.video.url}','_blank')">觀看影片</button></div>`:''}`; d.classList.remove('hidden'); }
 function openVideoModal(id) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()" style="color:white;z-index:100"><i class="fas fa-times"></i></button><iframe src="https://www.youtube.com/embed/${id}?autoplay=1" style="width:100%;height:100%;border:none" allowfullscreen></iframe>`; m.style.background='black'; m.style.padding='0'; m.classList.add('active'); document.body.classList.add('modal-open'); }
 function hideModal() { document.querySelectorAll('.modal').forEach(m=>{m.classList.remove('active');m.style.background='';m.style.padding='';}); document.body.classList.remove('modal-open'); }
 
 function renderAdmin() { if(!sessionStorage.getItem('adm')) { document.getElementById('admin-login').classList.remove('hidden'); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('admin-login-btn').onclick=async()=>{ const p=document.getElementById('admin-password').value; const res=await fetch(GAS_API_URL,{method:'POST', body:JSON.stringify({action:'check_auth',password:p})}); const j=await res.json(); if(j.success){sessionStorage.setItem('adm',p);renderAdmin();showToast('登入成功');}else{alert('密碼錯誤');} }; } else { document.getElementById('admin-login').classList.add('hidden'); document.getElementById('admin-dashboard').classList.remove('hidden'); bindAdmin(); } }
-function bindAdmin() { document.getElementById('admin-add-announcement').onclick=()=>{document.getElementById('admin-content').innerHTML=`<div class="card"><h3>新增公告</h3><input id="at" class="admin-input" placeholder="標題"><input type="date" id="ad" class="admin-input"><textarea id="ac" class="admin-textarea"></textarea><button class="hero-btn" onclick="postAnn()">發布</button></div>`}; document.getElementById('admin-view-leave').onclick=()=>{let h='<h3>請假列表</h3>';leaveRequestsData.forEach(l=>{h+=`<div class="card" style="display:flex;justify-content:space-between"><div>${l.name} ${l.date}</div><button class="action-btn delete" onclick="delLeave('${l.rowId}')">刪除</button></div>`});document.getElementById('admin-content').innerHTML=h}; }
+function bindAdmin() { document.getElementById('admin-add-announcement').onclick=()=>{document.getElementById('admin-content').innerHTML=`<div class="card"><h3>新增公告</h3><input id="at" class="admin-input" placeholder="標題"><input type="date" id="ad" class="admin-input"><textarea id="ac" class="admin-textarea"></textarea><button class="hero-btn" onclick="postAnn()">發布</button></div>`}; document.getElementById('admin-view-leave').onclick=()=>{let h='<h3>請假列表</h3>';leaveRequestsData.forEach(l=>{h+=`<div class="card" style="display:flex;justify-content:space-between"><div>${l.name} ${l.date}</div><button class="action-btn delete" onclick="delLeave('${l.rowId}')">刪除</button></div>`});document.getElementById('admin-content').innerHTML=h}; document.getElementById('admin-manage-players').onclick=()=>showToast('球員管理: 開發中'); document.getElementById('admin-manage-matches').onclick=()=>showToast('比賽管理: 開發中'); document.getElementById('admin-settings').onclick=()=>showAdminSettings(); }
+function showAdminSettings() { const c = document.getElementById('admin-content'); const curr = window.heroConfig?.hero_bg_url || ''; c.innerHTML = `<div class="card"><h3>網站設定</h3><label>首頁背景圖 URL</label><input id="conf-bg" class="admin-input" value="${escapeHtml(curr)}"><button class="hero-btn" onclick="saveConfig()">儲存設定</button></div>`; }
+async function saveConfig() { await sendToGasWithAuth('update_config', { hero_bg_url: document.getElementById('conf-bg').value }); }
+async function sendToGasWithAuth(action, payload) { const pwd = sessionStorage.getItem('adm'); if(!pwd) return; const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action, payload, password: pwd }) }); const j = await res.json(); showToast(j.message); if(j.success) { loadAllData(); } }
+
 window.postAnn=async()=>{ await fetch(GAS_API_URL,{method:'POST', body:JSON.stringify({action:'add_announcement', password:sessionStorage.getItem('adm'), payload:{title:document.getElementById('at').value, date:document.getElementById('ad').value, content:document.getElementById('ac').value}})}); alert('已發布'); loadAllData(); };
 window.delLeave=async(id)=>{ if(confirm('刪除?')) { await fetch(GAS_API_URL,{method:'POST', body:JSON.stringify({action:'delete_leave', password:sessionStorage.getItem('adm'), payload:{rowId:id}})}); alert('已刪除'); loadAllData(); } };
 
