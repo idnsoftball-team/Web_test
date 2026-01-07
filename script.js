@@ -1,14 +1,13 @@
-// script.js - v25.0 (Admin UI Polish & Schedule Compact)
+// script.js - v26.0 (Fixed Type Mismatch Bug)
 
-const APP_VERSION = '25.0';
+const APP_VERSION = '26.0';
 // ★★★ 請保留您的私人 Gmail GAS 網址 ★★★
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
 
-// Clear SW
 if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(r => r.forEach(i => i.unregister())); }
 
 let announcements=[], schedule={}, players=[], staff=[], matches=[], leaveRequestsData=[];
-let adminLeaveShowToday = false; // State for admin leave filter
+let adminLeaveShowToday = false;
 
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const defaultSlots = ['17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00'];
@@ -26,7 +25,7 @@ function initEmptySchedule() {
 }
 initEmptySchedule();
 
-// === Load Data ===
+// === Load Data (GET) ===
 async function loadAllData() {
   const loader = document.getElementById('app-loader');
   try {
@@ -88,7 +87,7 @@ function normalizeData(data) {
     };
   });
   const leaves = (data.leave_requests||[]).map(r => ({
-    rowId: r.rowId,
+    rowId: r.rowId, // Keep original from GAS (Number)
     name: getVal(r, ['created_by_email', 'name']) || '未知',
     date: String(getVal(r, ['leave_date', 'date']) || '').split('T')[0],
     slot: r.slot||'', reason: r.reason||''
@@ -119,7 +118,6 @@ function renderHome() {
           annDiv.innerHTML += `<div class="card" onclick="showAnnouncementDetail('${escapeHtml(a.title)}','${a.date}','${escapeHtml(a.content)}')"><div style="display:flex;justify-content:space-between;align-items:center"><h4 style="margin:0;color:#0054a6">${escapeHtml(a.title)}</h4><span style="font-size:0.8rem;color:#888">${a.date}</span></div><p style="margin-top:6px;font-size:0.9rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.content)}</p></div>`;
       });
   }
-  // Home Leave Overview
   const homeLeaveDiv = document.getElementById('home-leave-overview');
   if(homeLeaveDiv) {
       const today = new Date().toISOString().split('T')[0];
@@ -143,10 +141,8 @@ function renderAnnouncements() {
     list.forEach(a => { d.innerHTML += `<div class="card" onclick="showAnnouncementDetail('${escapeHtml(a.title)}','${a.date}','${escapeHtml(a.content)}')"><div style="display:flex;justify-content:space-between;"><h4 style="margin:0">${escapeHtml(a.title)}</h4><span style="font-size:0.8rem;color:#888">${a.date}</span></div><p style="margin-top:8px;color:#555">${escapeHtml(a.content)}</p></div>`; });
 }
 
-// User View Leave List
 function renderLeaveList() {
     const d = document.getElementById('leave-list'); d.innerHTML = '';
-    // Sort Date DESC for user view
     let list = leaveRequestsData.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     if(list.length===0) { d.innerHTML='<div style="text-align:center;color:#888;padding:20px">無資料</div>'; return; }
     list.forEach(l => {
@@ -158,7 +154,6 @@ function renderLeaveList() {
     });
 }
 
-// ★★★ Match Records: Toggle (No Modal) ★★★
 function renderMatches() {
     const d = document.getElementById('match-list'); d.innerHTML = '';
     const k = document.getElementById('match-keyword').value.toLowerCase();
@@ -192,7 +187,6 @@ function renderMatches() {
 
 function renderRoster(){const pd=document.getElementById('roster-players');const sd=document.getElementById('roster-staff');pd.innerHTML='';sd.innerHTML='';const q=document.getElementById('roster-search').value.toLowerCase();staff.forEach(s=>{if(q&&!s.name.includes(q))return;sd.innerHTML+=`<div class="roster-card-compact"><div class="roster-name">${escapeHtml(s.name)}</div><div class="roster-info">教練</div></div>`});players.forEach(p=>{const t=[p.name,p.grade,p.class].join(' ');if(q&&!t.includes(q))return;let i=(p.grade?p.grade+'年':'')+(p.class?p.class+'班':'')||'學員';pd.innerHTML+=`<div class="roster-card-compact"><div class="roster-name">${escapeHtml(p.name)}</div><div class="roster-info">${i}</div></div>`})}
 
-// ★★★ Schedule: Compact 3-Line ★★★
 function renderSchedule() {
     const c = document.getElementById('schedule-container');c.innerHTML='';const q=document.getElementById('schedule-search').value.toLowerCase();
     weekdays.forEach((d,i)=>{
@@ -203,7 +197,6 @@ function renderSchedule() {
         h.innerHTML=`<span>${d}</span> <i class="fas fa-chevron-${op?'up':'down'}"></i>`;
         if(op)h.classList.add('active');
         const ct=document.createElement('div');ct.className=`accordion-content ${op?'show':''}`;
-        
         if(!has&&!q){ct.innerHTML='<div style="padding:10px;text-align:center;color:#ccc">本日無課</div>'}else{
             Object.keys(slots).forEach(s=>{
                 const items=slots[s].filter(e=>!q||JSON.stringify(e).toLowerCase().includes(q));
@@ -211,7 +204,6 @@ function renderSchedule() {
                 ct.innerHTML+=`<div class="time-slot-header">${s}</div>`;
                 const g=document.createElement('div');g.className='compact-grid';
                 items.forEach(e=>{
-                    // Compact 3-Line Layout
                     let html=`<div class="compact-card">
                         <div class="schedule-header">
                             <span class="table-badge">T${e.table}</span>
@@ -237,17 +229,15 @@ function escapeHtml(t) { return t?String(t).replace(/&/g,'&amp;').replace(/</g,'
 function convertDriveLink(u) { if(!u)return''; if(u.includes('googleusercontent'))return u; const m=u.match(/\/d\/([a-zA-Z0-9_-]+)/); return m?`https://drive.google.com/uc?export=view&id=${m[1]}`:u; }
 function getYouTubeID(u) { const m=u.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/); return (m&&m[1].length===11)?m[1]:null; }
 function showToast(m) { const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className='toast show'; t.innerText=m; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
-function showAnnouncementDetail(t,d,c) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button><h3 style="margin-top:10px;color:#0054a6">${t}</h3><div style="color:#888;font-size:0.85rem;margin-bottom:15px;border-bottom:1px dashed #eee;padding-bottom:10px">${d}</div><div style="line-height:1.8;color:#333;white-space:pre-wrap">${c}</div>`; document.body.classList.add('modal-open'); m.classList.add('active'); }
+function showAnnouncementDetail(title,date,content) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button><h3 style="margin:0 0 10px 0;color:#0054a6">${title}</h3><div style="color:#888;font-size:0.85rem;margin-bottom:15px;border-bottom:1px dashed #eee;padding-bottom:10px">${date}</div><div style="line-height:1.8;color:#333;white-space:pre-wrap">${content}</div>`; document.body.classList.add('modal-open'); m.classList.add('active'); }
 function openVideoModal(id) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()" style="color:white;z-index:100"><i class="fas fa-times"></i></button><iframe src="https://www.youtube.com/embed/${id}?autoplay=1" style="width:100%;height:100%;border:none" allowfullscreen></iframe>`; m.style.background='black'; m.style.padding='0'; m.classList.add('active'); document.body.classList.add('modal-open'); }
 function hideModal() { document.querySelectorAll('.modal').forEach(m=>{m.classList.remove('active');m.style.background='';m.style.padding='';}); document.body.classList.remove('modal-open'); }
 
-// ★★★ Admin: Login HTML Fix & Leave Sort/Filter/Edit ★★★
 function renderAdmin() { 
     if(!sessionStorage.getItem('adm')) { 
         document.getElementById('admin-dashboard').classList.add('hidden');
         const lc = document.getElementById('admin-login');
         lc.classList.remove('hidden');
-        // Force render Login HTML
         lc.innerHTML = `<h3 style="margin-bottom:20px;color:#0054a6;">系統登入</h3><input type="password" id="admin-password" class="admin-input" placeholder="輸入管理密碼"><button id="admin-login-btn" class="admin-btn-login">登入</button>`;
         document.getElementById('admin-login-btn').onclick = async () => {
             const p = document.getElementById('admin-password').value;
@@ -275,13 +265,12 @@ function bindAdmin() {
     document.getElementById('admin-settings').onclick=()=>showAdminSettings(); 
 }
 
-// ★★★ Admin Leave List: Filter, Sort & Edit ★★★
+// ★★★ Admin Leave List: Filter & Sort & Edit ★★★
 function showAdminLeaveList() {
     const c = document.getElementById('admin-content');
-    // Controls
     let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3>請假管理</h3><button id="adm-filter-today" class="btn-filter-today ${adminLeaveShowToday?'active':''}"><i class="fas fa-calendar-day"></i> 只看今日</button></div>`;
     
-    // Sort: Nearest date first
+    // Sort: Nearest First
     let list = leaveRequestsData.slice().sort((a,b) => new Date(a.date) - new Date(b.date));
     if(adminLeaveShowToday) {
         const today = new Date().toISOString().split('T')[0];
@@ -312,8 +301,9 @@ function showAdminLeaveList() {
     document.getElementById('adm-filter-today').onclick = () => { adminLeaveShowToday=!adminLeaveShowToday; showAdminLeaveList(); };
 }
 
+// ★★★ 關鍵修正：寬鬆比較 (==) 以匹配字串與數字 ID ★★★
 window.editLeave = (rowId) => {
-    const l = leaveRequestsData.find(x => x.rowId === rowId);
+    const l = leaveRequestsData.find(x => x.rowId == rowId);
     if(!l) return;
     const c = document.getElementById('admin-content');
     c.innerHTML = `
