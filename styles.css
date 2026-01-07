@@ -1,4 +1,4 @@
-/* styles.css - v16.0 Final (Matches Filter & Scoreboard Fixed) */
+/* styles.css - v17.0 (Includes Matches Beautification) */
 :root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --bg-color:#f4f7f6; --text-main:#2c3e50; }
 * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family:'Roboto',sans-serif; background:var(--bg-color); color:var(--text-main); padding-bottom:90px; }
@@ -26,11 +26,14 @@ main { margin-top:60px; padding:16px; min-height:80vh; }
 @media(min-width:600px){ .card-container { grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); } }
 .card { background:white; border-radius:12px; padding:15px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
 
-/* Matches Filter & Scoreboard */
+/* ★★★ 比賽紀錄搜尋與標題美化 ★★★ */
 .multi-filter-bar { background:white; padding:15px; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.05); margin-bottom:20px; display:flex; flex-direction:column; gap:12px; border:1px solid #eee; }
 .filter-row { display:flex; align-items:center; gap:15px; flex-wrap:wrap; }
 .filter-search-input { width:100%; padding:12px 20px; border:1px solid #e0e0e0; border-radius:50px; font-size:1rem; background:#f8f9fa; }
 .filter-checkbox-label { display:flex; align-items:center; gap:8px; background:#f0f2f5; padding:8px 16px; border-radius:20px; cursor:pointer; font-size:0.9rem; }
+section#matches h2 { color:var(--primary-dark); font-size:1.5rem; margin-bottom:15px; display:flex; align-items:center; gap:10px; }
+section#matches h2::before { content:''; display:block; width:6px; height:24px; background:var(--accent-gold); border-radius:4px; }
+
 .match-card-score { background:white; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.08); margin-bottom:16px; overflow:hidden; }
 .match-score-header { background:#f1f3f5; padding:8px 15px; display:flex; justify-content:space-between; font-size:0.85rem; font-weight:bold; color:#666; }
 .match-score-body { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; }
