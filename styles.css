@@ -1,6 +1,5 @@
-/* styles.css - v8.0 Final Polish (Fixing Header, Media, Matches, TopBtn) */
+/* styles.css - v9.0 Visual Overhaul (Mobile Optimized) */
 
-/* === 1. 變數系統 === */
 :root {
   --primary-gradient: linear-gradient(135deg, #0054a6 0%, #003366 100%);
   --primary-color: #0054a6;
@@ -9,208 +8,264 @@
   --danger-color: #e74c3c;
   --success-color: #27ae60;
   --text-main: #2c3e50;
-  --text-light: #7f8c8d;
-  --bg-color: #f0f2f5;
+  --bg-color: #f4f7f6; /* 背景改得稍微清爽一點 */
+  
   --header-height: 60px;
-  --sidebar-width: 260px;
-
-  /* Z-Index */
-  --z-bg: -1;
-  --z-header: 1000;
-  --z-overlay: 2000;
-  --z-sidebar: 3000;
-  --z-modal: 4000;
-  --z-toast: 5000;
+  --bottom-nav-height: 70px; /* 加高底部導航 */
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-body { margin: 0; font-family: 'Roboto', 'Noto Sans TC', sans-serif; background: var(--bg-color); color: var(--text-main); padding-bottom: 80px; }
+body { margin: 0; font-family: 'Roboto', 'Noto Sans TC', sans-serif; background: var(--bg-color); color: var(--text-main); padding-bottom: 90px; }
 
-/* 背景紋理 */
+/* 背景紋理 (淡化) */
 .bg-mesh {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: var(--z-bg);
-  background: radial-gradient(circle at 10% 20%, rgba(0, 84, 166, 0.05) 0%, transparent 40%);
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
+  background: radial-gradient(circle at 10% 20%, rgba(0, 84, 166, 0.03) 0%, transparent 40%);
   pointer-events: none;
 }
 
-/* === Fix 1: Header Alignment === */
+/* === Header === */
 header {
   position: fixed; top: 0; left: 0; width: 100%; height: var(--header-height);
   background: var(--primary-gradient); color: white;
-  display: flex; align-items: center; justify-content: space-between; padding: 0 1rem;
-  z-index: var(--z-header); box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 15px;
+  z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
 }
-/* 新增：左側容器設定，讓漢堡跟標題對齊 */
-.header-left {
-  display: flex; align-items: center; gap: 10px; height: 100%;
-}
-header h1 { 
-  font-size: 1.3rem; font-weight: 900; margin: 0; 
-  display: flex; align-items: center; gap: 8px; line-height: 1;
-}
-#menu-toggle, #back-button { 
-  background: none; border: none; color: white; font-size: 1.5rem; 
-  padding: 5px; cursor: pointer; display: flex; align-items: center; 
-}
+.header-left { display: flex; align-items: center; gap: 8px; height: 100%; }
+header h1 { font-size: 1.25rem; font-weight: 900; margin: 0; display: flex; align-items: center; gap: 8px; }
+#menu-toggle, #back-button { background: none; border: none; color: white; font-size: 1.4rem; padding: 5px 10px; cursor: pointer; display: flex; align-items: center; }
 
 /* === Sidebar & Overlay === */
 nav#sidebar {
-  position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-width);
-  background: white; z-index: var(--z-sidebar);
-  transform: translateX(-100%); transition: transform 0.3s ease;
-  padding-top: 80px; box-shadow: 2px 0 15px rgba(0,0,0,0.1);
+  position: fixed; top: 0; left: 0; bottom: 0; width: 260px;
+  background: white; z-index: 3000;
+  transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-top: 80px; box-shadow: 2px 0 20px rgba(0,0,0,0.1);
 }
 body.sidebar-open nav#sidebar { transform: translateX(0); }
-nav#sidebar ul { list-style: none; padding: 0 1.5rem; }
+nav#sidebar ul { list-style: none; padding: 0 20px; }
 nav#sidebar a {
-  display: flex; align-items: center; gap: 12px; padding: 12px;
-  color: #333; text-decoration: none; border-radius: 8px; margin-bottom: 5px; font-weight: 500;
+  display: flex; align-items: center; gap: 15px; padding: 14px;
+  color: #444; text-decoration: none; border-radius: 12px; margin-bottom: 8px; font-weight: 500; font-size: 1rem;
 }
-nav#sidebar a.active, nav#sidebar a:hover { background: var(--primary-color); color: white; }
-nav#sidebar a i { width: 24px; text-align: center; color: var(--primary-color); }
-nav#sidebar a.active i, nav#sidebar a:hover i { color: var(--accent-gold); }
-
+nav#sidebar a.active { background: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(0,84,166,0.3); }
+nav#sidebar a i { width: 24px; text-align: center; font-size: 1.1rem; }
+nav#sidebar a.active i { color: var(--accent-gold); }
 #overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5); z-index: var(--z-overlay);
+  background: rgba(0,0,0,0.5); z-index: 2000;
   opacity: 0; pointer-events: none; transition: opacity 0.3s;
 }
 body.sidebar-open #overlay, body.modal-open #overlay { opacity: 1; pointer-events: auto; }
 
 /* === Main Layout === */
-main { margin-top: var(--header-height); padding: 15px; transition: 0.3s; min-height: 80vh; }
+main { margin-top: var(--header-height); padding: 16px; min-height: 80vh; }
 @media(min-width: 768px) {
   nav#sidebar { transform: translateX(0); }
-  main { margin-left: var(--sidebar-width); }
-  #menu-toggle { display: none; }
-  #bottom-nav { display: none !important; }
+  main { margin-left: 260px; }
+  #menu-toggle, #bottom-nav { display: none !important; }
 }
 
-/* === Hero & General Cards === */
-.hero-section {
-  background: radial-gradient(circle at center, #2c3e50 0%, #000 100%);
-  border-radius: 12px; color: white; text-align: center;
-  padding: 30px 20px; margin-bottom: 20px; position: relative; overflow: hidden;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px;
-}
-.hero-bg-placeholder { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0.5; background-size: cover; background-position: center; }
-.hero-content { position: relative; z-index: 2; }
-.hero-title { font-size: 1.8rem; font-weight: 900; margin: 0 0 5px 0; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-.hero-btn {
-  background: var(--accent-gold); color: black; border: none; padding: 8px 24px;
-  border-radius: 20px; font-weight: bold; margin-top: 15px; cursor: pointer;
-}
-.card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+/* === 1. 請假卡片 (Leave Card) - 手機優化版 === */
+.leave-list-container { display: flex; flex-direction: column; gap: 12px; }
 
-/* === 2. 請假卡片 (Fix Ugly Date) === */
-.leave-item {
-  background: white; border-radius: 12px; padding: 16px;
-  border-left: 5px solid var(--danger-color);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px;
+.leave-card-new {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  border-left: 6px solid var(--danger-color); /* 左側紅條 */
 }
-.leave-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.leave-item-name { font-size: 1.1rem; font-weight: 700; color: #333; }
-/* 美化日期標籤 */
-.leave-item-date-badge { 
-  background: #f0f2f5; color: #555; padding: 4px 12px; 
-  border-radius: 20px; font-size: 0.85rem; font-weight: 500;
-  display: flex; align-items: center; gap: 5px;
-}
-.leave-item-date-badge i { color: var(--primary-color); font-size: 0.8rem; }
-.leave-item-reason { font-size: 0.95rem; color: #444; line-height: 1.5; margin-top: 5px; }
 
-/* === 3. 名冊 (Roster) === */
-.roster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+.leave-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.leave-name-large {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #333;
+}
+
+/* 日期時間標籤容器 */
+.leave-tags-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tag-date {
+  background: #e3f2fd; /* 淺藍底 */
+  color: #1976d2;      /* 深藍字 */
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex; align-items: center; gap: 4px;
+}
+.tag-time {
+  background: #fff3e0; /* 淺橘底 */
+  color: #e65100;      /* 深橘字 */
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.leave-reason-box {
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 8px;
+  color: #555;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+/* === 2. 底部導覽列 (Bottom Nav) - 修復字體與間距 === */
+#bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; width: 100%;
+  height: var(--bottom-nav-height); /* 增高 */
+  background: white;
+  display: flex; justify-content: space-around; align-items: center;
+  z-index: 1000;
+  border-top: 1px solid #eee;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+  /* 適配 iPhone X+ 底部橫條 */
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: content-box; /* 確保 padding 不吃掉高度 */
+}
+
+#bottom-nav button {
+  background: none; border: none;
+  color: #999;
+  flex: 1;
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px;
+  padding-top: 5px;
+}
+
+#bottom-nav button i {
+  font-size: 1.4rem; /* 圖示加大 */
+  margin-bottom: 2px;
+  transition: transform 0.2s;
+}
+
+#bottom-nav button span {
+  font-size: 0.85rem; /* 字體加大 */
+  font-weight: 500;
+}
+
+#bottom-nav button.active { color: var(--primary-color); }
+#bottom-nav button.active i { transform: translateY(-2px); color: var(--primary-color); }
+
+/* === 3. 比賽紀錄 (Scoreboard Style) === */
+.match-card-score {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.match-score-header {
+  background: #f1f3f5;
+  padding: 8px 15px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+}
+
+.match-score-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+}
+
+.match-players-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.match-side {
+  display: flex;
+  flex-direction: column;
+}
+.side-label { font-size: 0.75rem; color: #999; margin-bottom: 2px; }
+.side-names { font-size: 1.1rem; font-weight: 700; color: #333; line-height: 1.2; }
+
+.match-score-box {
+  background: var(--primary-dark);
+  color: var(--accent-gold);
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900;
+  font-size: 1.8rem;
+  padding: 10px 15px;
+  border-radius: 12px;
+  min-width: 80px;
+  text-align: center;
+  margin-left: 15px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* === 4. 名冊與排程 (Retain previous fixes) === */
+.roster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
 .roster-card-compact {
-  background: white; border-radius: 8px; padding: 10px 4px; text-align: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 3px solid var(--primary-color);
-  min-height: 70px; display: flex; flex-direction: column; justify-content: center;
+  background: white; border-radius: 10px; padding: 12px 5px; text-align: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--primary-color);
+  min-height: 80px; display: flex; flex-direction: column; justify-content: center;
 }
-.roster-name { font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.roster-info { font-size: 0.8rem; color: #666; background: #f4f4f4; border-radius: 4px; padding: 2px 0; margin: 0 4px; }
+.roster-name { font-weight: bold; color: #333; margin-bottom: 4px; font-size: 1rem; }
+.roster-info { font-size: 0.8rem; color: #666; background: #eee; border-radius: 4px; display: inline-block; padding: 2px 6px; margin: 0 auto; }
 
-/* === 4. 排程 (Schedule) === */
-.accordion-header {
-  background: white; padding: 12px 15px; border-radius: 8px; margin-bottom: 5px;
-  font-weight: bold; color: var(--primary-dark); display: flex; justify-content: space-between;
-  border-left: 4px solid var(--accent-gold); cursor: pointer;
-}
+/* 排程折疊 */
+.accordion-header { background: white; padding: 14px; border-radius: 10px; margin-bottom: 6px; font-weight: bold; color: var(--primary-dark); display: flex; justify-content: space-between; border-left: 4px solid var(--accent-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .accordion-header.active { background: var(--primary-color); color: white; }
 .accordion-content { display: none; padding: 5px 0; }
 .accordion-content.show { display: block; }
-.time-slot-header { font-size: 0.85rem; color: #888; margin: 10px 0 5px 5px; font-weight: bold; }
+.compact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.compact-card { background: rgba(255,255,255,0.8); border: 1px solid #ddd; border-radius: 8px; padding: 8px; text-align: center; font-size: 0.9rem; }
+.table-badge { background: var(--primary-color); color: white; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; display: inline-block; }
 
-.compact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.compact-card {
-  background: rgba(255,255,255,0.9); border: 1px solid #e0e0e0;
-  border-radius: 6px; padding: 8px 4px; text-align: center;
-  min-height: 80px; display: flex; flex-direction: column; justify-content: center;
-}
-.compact-card .table-badge { background: var(--primary-color); color: white; font-size: 0.7rem; padding: 1px 5px; border-radius: 3px; align-self: center; margin-bottom: 3px; }
-.compact-card .coach-name { font-size: 0.75rem; color: #d35400; font-weight: 800; margin-bottom: 2px; }
-.compact-card .players { font-size: 0.8rem; color: #333; line-height: 1.2; word-break: break-all; }
-
-/* === 5. 比賽紀錄 (Fix Match Ugly) === */
-.match-card {
-  background: white; border-radius: 12px; margin-bottom: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05); cursor: pointer; border: 1px solid #eee;
-  overflow: hidden; transition: transform 0.2s;
-}
-.match-card:active { transform: scale(0.98); }
-.match-header {
-  background: #f8f9fa; padding: 8px 15px; display: flex; justify-content: space-between;
-  align-items: center; border-bottom: 1px solid #eee; font-size: 0.85rem; color: #666;
-}
-.match-tag { background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-.match-body { padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-.match-vs { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.match-player { font-weight: 700; color: #2c3e50; font-size: 1.05rem; }
-.match-opponent { color: #555; font-size: 1rem; }
-.match-score {
-  font-size: 1.6rem; font-weight: 900; color: var(--primary-dark);
-  background: #eee; padding: 5px 12px; border-radius: 8px; min-width: 60px; text-align: center;
-}
-
-/* === 6. 影音區 (Fix Background) === */
-section#media {
-  background: #111; /* 確保深色背景生效 */
-  min-height: 100vh;
-  margin: -20px; /* 抵消 main padding */
-  padding: 80px 20px 100px 20px; /* 重新加回 padding */
-  color: white;
-}
-section#media h2 { color: var(--accent-gold); border-left: 4px solid var(--primary-color); padding-left: 10px; margin-top: 0; }
-.video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-.video-card {
-  background: #222; border-radius: 12px; overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; border: 1px solid #333;
-}
-.video-thumb-container { position: relative; width: 100%; aspect-ratio: 16/9; background: black; }
-.video-thumb { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
-.play-icon-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; color: rgba(255,255,255,0.8); }
-.video-info { padding: 12px; }
-.video-title { font-size: 0.95rem; font-weight: bold; color: #eee; }
-
-/* === 7. Fix Back-to-Top Button === */
+/* === 5. 置頂按鈕與其他 === */
 #back-to-top {
-  position: fixed; bottom: 80px; right: 20px; /* 確保位置 */
-  width: 45px; height: 45px; background: var(--primary-color); color: white;
-  border: none; border-radius: 50%; /* 確保是圓形 */
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-  cursor: pointer; z-index: var(--z-toast);
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none; transition: all 0.3s;
+  position: fixed; bottom: 90px; right: 20px;
+  width: 50px; height: 50px; background: var(--primary-color); color: white;
+  border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+  z-index: 2000; opacity: 0; pointer-events: none; transition: all 0.3s;
 }
 #back-to-top.show { opacity: 1; pointer-events: auto; }
 
-/* Admin & Utils */
-#admin-login.card { max-width: 400px; margin: 10vh auto; text-align: center; padding: 40px 30px; }
-#admin-login input { background: #f4f6f8; border: none; padding: 12px; border-radius: 30px; width: 100%; margin-bottom: 15px; }
-#admin-login button { width: 100%; padding: 12px; border-radius: 30px; background: var(--primary-gradient); color: white; border: none; }
-.hidden { display: none !important; }
-#bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: white; display: flex; justify-content: space-around; z-index: var(--z-header); border-top: 1px solid #eee; }
-#bottom-nav button { background: none; border: none; color: #aaa; flex: 1; font-size: 0.7rem; display: flex; flex-direction: column; align-items: center; }
-#bottom-nav button.active { color: var(--primary-color); }
-.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; width: 90%; padding: 20px; border-radius: 12px; z-index: var(--z-modal); display: none; }
+section#media {
+  background-color: #1a1a1a; min-height: 100vh;
+  margin: -16px; padding: 80px 16px 100px 16px; color: white;
+}
+.video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+.video-card { background: #333; border-radius: 10px; overflow: hidden; }
+.video-thumb-container { width: 100%; aspect-ratio: 16/9; background: black; position: relative; }
+.video-thumb { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+.play-icon-overlay { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:3rem; color:rgba(255,255,255,0.8); }
+.video-info { padding: 10px; }
+
+/* Admin Login & Modal */
+#admin-login.card { max-width: 400px; margin: 10vh auto; text-align: center; padding: 30px; }
+#admin-login input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; }
+#admin-login button { width: 100%; padding: 12px; border-radius: 8px; background: var(--primary-gradient); color: white; border: none; }
+.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; width: 90%; max-width: 500px; padding: 20px; border-radius: 16px; z-index: 4000; display: none; }
 .modal.active { display: block; }
-.btn-close-absolute { position: absolute; top: 10px; right: 10px; border:none; background:none; font-size:1.2rem; }
+.btn-close-absolute { position: absolute; top: 10px; right: 10px; border: none; background: none; font-size: 1.5rem; color: #999; }
+.hidden { display: none !important; }
