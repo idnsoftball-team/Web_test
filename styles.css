@@ -1,4 +1,4 @@
-/* styles.css - v9.5 Final Visual Fix (Hero & Mobile) */
+/* styles.css - v12.0 Final Complete (Restored Containers) */
 
 :root {
   --primary-gradient: linear-gradient(135deg, #0054a6 0%, #003366 100%);
@@ -16,7 +16,7 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
 body { margin: 0; font-family: 'Roboto', 'Noto Sans TC', sans-serif; background: var(--bg-color); color: var(--text-main); padding-bottom: 90px; }
 
-/* 背景紋理 */
+/* 背景 */
 .bg-mesh {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
   background: radial-gradient(circle at 10% 20%, rgba(0, 84, 166, 0.03) 0%, transparent 40%);
@@ -64,45 +64,29 @@ main { margin-top: var(--header-height); padding: 16px; min-height: 80vh; }
   #menu-toggle, #bottom-nav { display: none !important; }
 }
 
-/* ★★★ Hero Section (修復首頁破圖關鍵) ★★★ */
+/* Hero */
 .hero-section {
-  /* 這裡強制給一個深色漸層背景，防止圖片載入失敗時一片白 */
   background: linear-gradient(135deg, #2c3e50 0%, #000000 100%) !important;
   color: white;
   min-height: 220px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  border-radius: 16px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; border-radius: 16px; margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: center;
 }
-.hero-bg-placeholder {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  opacity: 0.4;
-  background-size: cover; background-position: center; z-index: 0;
-}
+.hero-bg-placeholder { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0.4; background-size: cover; background-position: center; z-index: 0; }
 .hero-content { position: relative; z-index: 2; }
 .hero-title { font-size: 1.8rem; font-weight: 900; margin-bottom: 5px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-.hero-btn {
-  background: var(--accent-gold); color: black; border: none; padding: 8px 24px;
-  border-radius: 20px; font-weight: bold; margin-top: 15px; cursor: pointer;
-}
+.hero-btn { background: var(--accent-gold); color: black; border: none; padding: 8px 24px; border-radius: 20px; font-weight: bold; margin-top: 15px; cursor: pointer; }
 
-/* Card Styles */
+/* ★★★ 補回漏掉的容器樣式 ★★★ */
+.card-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(100%, 1fr)); gap: 15px; }
+@media (min-width: 600px) { .card-container { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); } }
+
 .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
 /* 請假卡片 */
 .leave-list-container { display: flex; flex-direction: column; gap: 12px; }
-.leave-card-new {
-  background: white; border-radius: 16px; padding: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 12px;
-  border-left: 6px solid var(--danger-color);
-}
+.leave-card-new { background: white; border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 12px; border-left: 6px solid var(--danger-color); }
 .leave-header-row { display: flex; justify-content: space-between; align-items: center; }
 .leave-name-large { font-size: 1.2rem; font-weight: 700; color: #333; }
 .leave-tags-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -110,37 +94,23 @@ main { margin-top: var(--header-height); padding: 16px; min-height: 80vh; }
 .tag-time { background: #fff3e0; color: #e65100; padding: 4px 10px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
 .leave-reason-box { background: #f9f9f9; padding: 10px; border-radius: 8px; color: #555; font-size: 0.95rem; line-height: 1.4; }
 
-/* 比賽紀錄 (計分板) */
-.match-card-score {
-  background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-  margin-bottom: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,0.05);
-}
-.match-score-header {
-  background: #f1f3f5; padding: 8px 15px; display: flex; justify-content: space-between;
-  font-size: 0.85rem; color: #666; font-weight: 600; border-bottom: 1px solid #eee;
-}
+/* 比賽紀錄 (Scoreboard Style) */
+.match-card-score { background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,0.05); }
+.match-score-header { background: #f1f3f5; padding: 8px 15px; display: flex; justify-content: space-between; font-size: 0.85rem; color: #666; font-weight: 600; border-bottom: 1px solid #eee; }
 .match-score-body { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
 .match-players-container { display: flex; flex-direction: column; gap: 12px; flex: 1; }
 .match-side { display: flex; flex-direction: column; }
 .side-names { font-size: 1.1rem; font-weight: 700; color: #333; line-height: 1.2; }
-.match-score-box {
-  background: var(--primary-dark); color: var(--accent-gold);
-  font-family: 'Roboto', sans-serif; font-weight: 900; font-size: 1.8rem;
-  padding: 10px 15px; border-radius: 12px; min-width: 80px; text-align: center; margin-left: 15px;
-}
+.match-score-box { background: var(--primary-dark); color: var(--accent-gold); font-family: 'Roboto', sans-serif; font-weight: 900; font-size: 1.8rem; padding: 10px 15px; border-radius: 12px; min-width: 80px; text-align: center; margin-left: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 
 /* 底部導航 */
-#bottom-nav {
-  position: fixed; bottom: 0; left: 0; width: 100%; height: var(--bottom-nav-height);
-  background: white; display: flex; justify-content: space-around; align-items: center;
-  z-index: 1000; border-top: 1px solid #eee; padding-bottom: env(safe-area-inset-bottom);
-}
+#bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--bottom-nav-height); background: white; display: flex; justify-content: space-around; align-items: center; z-index: 1000; border-top: 1px solid #eee; padding-bottom: env(safe-area-inset-bottom); }
 #bottom-nav button { background: none; border: none; color: #999; flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 #bottom-nav button.active { color: var(--primary-color); }
 #bottom-nav button i { font-size: 1.4rem; }
 #bottom-nav button span { font-size: 0.85rem; font-weight: 500; }
 
-/* 其他 (Admin, Media, Roster) */
+/* 其他 */
 .roster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
 .roster-card-compact { background: white; border-radius: 10px; padding: 12px 5px; text-align: center; border-top: 4px solid var(--primary-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 .roster-name { font-weight: bold; color: #333; margin-bottom: 4px; font-size: 1rem; }
@@ -150,10 +120,14 @@ main { margin-top: var(--header-height); padding: 16px; min-height: 80vh; }
 #admin-login input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; }
 #admin-login button { width: 100%; padding: 12px; border-radius: 8px; background: var(--primary-gradient); color: white; border: none; }
 
-.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; width: 90%; max-width: 500px; padding: 20px; border-radius: 16px; z-index: 4000; display: none; }
+.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; width: 90%; max-width: 500px; padding: 20px; border-radius: 16px; z-index: 4000; display: none; max-height: 80vh; overflow-y: auto; }
 .modal.active { display: block; }
 .btn-close-absolute { position: absolute; top: 10px; right: 10px; border: none; background: none; font-size: 1.5rem; color: #999; }
 .hidden { display: none !important; }
+
+/* Admin Form Elements */
+.admin-input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px; }
+.admin-textarea { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px; min-height: 100px; }
 
 section#media { background-color: #1a1a1a; min-height: 100vh; margin: -16px; padding: 80px 16px 100px 16px; color: white; }
 .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
@@ -163,7 +137,6 @@ section#media { background-color: #1a1a1a; min-height: 100vh; margin: -16px; pad
 .play-icon-overlay { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:3rem; color:rgba(255,255,255,0.8); }
 .video-info { padding: 10px; }
 
-/* 排程 */
 .accordion-header { background: white; padding: 14px; border-radius: 10px; margin-bottom: 6px; font-weight: bold; color: var(--primary-dark); display: flex; justify-content: space-between; border-left: 4px solid var(--accent-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .accordion-header.active { background: var(--primary-color); color: white; }
 .accordion-content { display: none; padding: 5px 0; }
