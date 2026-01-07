@@ -1,6 +1,4 @@
-/* styles.css - v24.0 (Admin Leave Style Fix) */
-/* ... (保留上面的 root, body, header, hero 等等，請直接複製下方的完整版) ... */
-
+/* styles.css - v25.0 (Admin & Schedule Polish) */
 :root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --bg-color:#f4f7f6; --text-main:#2c3e50; }
 * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family:'Roboto',sans-serif; background:var(--bg-color); color:var(--text-main); padding-bottom:90px; }
@@ -60,7 +58,7 @@ section#matches h2::before { content:''; display:block; width:6px; height:24px; 
 .meta-tag { display: flex; align-items: center; gap: 4px; background: #f0f2f5; padding: 4px 8px; border-radius: 6px; }
 .leave-reason-box { background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px; font-size: 0.9rem; color: #444; line-height: 1.4; }
 
-/* Schedule */
+/* ★★★ Schedule (3-Line Compact) ★★★ */
 .accordion-header { background:white; padding:12px 15px; border-radius:10px; margin-bottom:6px; font-weight:bold; color:var(--primary-dark); display:flex; justify-content:space-between; border-left:4px solid var(--accent-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .accordion-content { display:none; padding:5px 0; }
 .accordion-content.show { display:block; }
@@ -71,7 +69,7 @@ section#matches h2::before { content:''; display:block; width:6px; height:24px; 
 .coach-name { color: var(--primary-color); font-weight: 900; font-size: 0.85rem; }
 .player-name { color: #333; font-size: 0.9rem; line-height: 1.2; }
 
-/* Admin Login */
+/* ★★★ Admin Login ★★★ */
 #admin-login { max-width:400px; margin:5vh auto; text-align:center; padding:30px; display: flex; flex-direction: column; gap: 15px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .admin-input { width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; font-size: 1rem; background: #fff; color: #333; }
 .admin-textarea { width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; min-height:80px; font-size: 1rem; }
