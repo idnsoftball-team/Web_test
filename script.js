@@ -1,197 +1,59 @@
-// script.js - Comprehensive Frontend for Table Tennis Team App (v6)
-//
-// 本版整合了前端所有核心功能，提供：
-// - 從 Google Apps Script 後端一次載入所有資料
-// - 前台頁面的切換與渲染（首頁、公告、排程、請假、比賽、名冊、影音）
-// - 名冊列表採用緊湊型摺疊卡片樣式，支援搜尋與排序
-// - 管理後台：球員名冊管理、排程管理、比賽管理、公告管理、請假管理、網站設定
-// - 支援密碼驗證的後端寫入函式 sendToGasWithAuth
+// script.js
 
-// === 後端 API 設定 ===
-// 更換為您的 Google Apps Script Web App URL
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
+/*
+ * 這個檔案包含前端邏輯，包括：
+ * - 側邊導覽切換
+ * - 渲染不同頁面內容
+ * - 假資料初始化（可改成從 API 讀取）
+ * - 提交/刪除請假
+ * - 簡易比賽紀錄篩選與選手分析
+ * - 管理模式登入與新增公告
+ */
 
-// === 全域變數 ===
+// === Google Sheets 設定區 ===
+
+/*
+ * 若要連線到 Google Sheets，請設定下列常數：
+ * - SPREADSHEET_ID：活頁簿的 ID（從網址取得）。
+ * - GID_MAPPING：每個分頁名稱對應的 gid（從網址 #gid= 取得）。
+ * 如果系統無法存取 Google 服務（例如離線環境），程式會回退到預設假資料。
+ */
+const SPREADSHEET_ID = '1mRcCNQSlTVwRRy7u9Yhx9knsw_0ZUyI0p6dMFgO-6os';
+const GID_MAPPING = {
+  config: '837241302',
+  announcements: '1966814983',
+  players: '1460096031',
+  parents: '1006978286',
+  parent_child: '1784910850',
+  staff: '389602556',
+  accounts: '1754002404',
+  training_schedule: '732203007',
+  leave_requests: '1300638614',
+  matches: '1739165902',
+  player_stats: '1827474791',
+  pair_stats: '1647550522',
+  audit_log: '844087473',
+  media: '1763674563'
+};
+
+// 假資料作為 fallback，當無法從遠端取得時使用
 let announcements = [];
+let schedule = {};
 let players = [];
 let staff = [];
 let matches = [];
-let leaveRequests = [];
-let schedule = {};
-let heroConfig = {};
-let adminLoggedIn = false;
+let parents = [];
+let parentChild = [];
+let accounts = [];
+let leaveRequestsData = [];
 
-// 星期與預設時段（用於排程）
-const weekdays = ['週一','週二','週三','週四','週五','週六','週日'];
+// 訓練排程相關常數（用於建立空結構與高亮週期）
+const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const defaultSlots = [
-  '17:00-18:00','18:00-19:00','19:00-20:00','20:00-21:00',
-  '11:00-12:00','12:00-13:00','13:00-14:00','14:00-15:00',
-  '15:00-16:00','16:00-17:00'
+  '17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00',
+  '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00',
+  '15:00-16:00', '16:00-17:00'
 ];
-
-// === 工具函式 ===
-
-// HTML escape（防止 XSS）
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// 日期格式化為 YYYY-MM-DD
-function formatDate(d) {
-  if (!d) return '';
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return d;
-  return date.toISOString().split('T')[0];
-}
-
-// 顯示 Toast 提示訊息
-function showToast(message) {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
-// 通用後端呼叫（帶密碼驗證）
-async function sendToGasWithAuth(action, payload) {
-  const passwordInput = document.getElementById('admin-password');
-  const password = passwordInput ? passwordInput.value.trim() : prompt('請輸入管理密碼確認操作：');
-  if (!password) return;
-  showToast('處理中...');
-  try {
-    const response = await fetch(GAS_API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action, payload, password })
-    });
-    const result = await response.json();
-    if (result.success) {
-      showToast(result.message || '操作成功');
-      await loadAllData();
-      // 依 action 更新畫面
-      if (action.includes('player')) {
-        showAdminPlayerList();
-      } else if (action.includes('schedule')) {
-        showAdminScheduleList();
-      } else if (action.includes('match')) {
-        showAdminMatchList();
-      } else if (action === 'update_config') {
-        renderHome();
-      } else if (action.includes('leave')) {
-        showAdminLeaveList();
-      }
-    } else {
-      showToast('失敗: ' + (result.message || '未知錯誤'));
-    }
-  } catch (e) {
-    console.error(e);
-    showToast('連線錯誤，請稍後再試');
-  }
-}
-
-// 確認刪除後呼叫後端
-function confirmDel(action, rowId, name) {
-  if (confirm(`確定要刪除 ${name} 嗎？`)) {
-    sendToGasWithAuth(action, { rowId });
-  }
-}
-
-// === 資料處理 ===
-
-// 將後端回傳的 Excel 欄位轉換為前端需要的結構
-function normalizeData(rawData) {
-  // 公告
-  const announcements = (rawData.announcements || []).map(r => ({
-    id: r.announcement_id || r.id,
-    date: formatDate(r.date || r.match_date || ''),
-    title: r.title || r.event_name || '',
-    content: r.content || r.notes || '',
-    // 可擴充 images/links 等
-  }));
-  // 球員
-  const players = (rawData.players || []).map(r => ({
-    rowId: r.rowId,
-    id: r.player_id ?? r.id,
-    name: r.student_name ?? r.name ?? '',
-    nickname: r.nickname || '',
-    grade: r.grade || '',
-    class: r.class || '',
-    paddle: r.paddle || '',
-    gender: r.gender || '',
-    hand: r.hand || '',
-    style: r.play_style || r.style || '',
-    photo: r.photo_url || '',
-    isActive: String(r.is_active ?? r.isActive ?? 'TRUE').toUpperCase()
-  }));
-  // 教練與工作人員
-  const staff = (rawData.staff || []).map(r => ({
-    id: r.staff_id || r.id,
-    name: r.name || '',
-    role: r.role || '',
-    email: r.email || '',
-    phone: r.phone || '',
-    isActive: String(r.is_active ?? 'TRUE').toUpperCase()
-  }));
-  // 排程（training_schedule）
-  const schedules = [];
-  (rawData.training_schedule || []).forEach(r => {
-    schedules.push({
-      rowId: r.rowId,
-      date: r.weekday || r.date,
-      slot: r.slot,
-      table: r.table_no,
-      coach: { id: r.coach_id, name: (staff.find(c => c.id === r.coach_id) || {}).name || r.coach_id },
-      playerA: { id: r.player_a_id, name: (players.find(p => p.id === r.player_a_id) || {}).name || r.player_a_id },
-      playerB: { id: r.player_b_id, name: (players.find(p => p.id === r.player_b_id) || {}).name || r.player_b_id },
-      remark: r.note || ''
-    });
-  });
-  // 比賽紀錄
-  const matches = (rawData.matches || []).map(r => ({
-    rowId: r.rowId,
-    date: formatDate(r.match_date || r.date),
-    eventName: r.event_name || '',
-    type: r.match_type || r.type || 'singles',
-    players: [r.player1_id, r.player2_id].filter(x => x),
-    opponents: [r.opponent1, r.opponent2].filter(x => x),
-    score: r.game_score || r.result || '',
-    sets: r.set_scores || '',
-    notes: r.notes || '',
-    video: { url: r.media_url || '', provider: r.media_provider || '' }
-  }));
-  // 請假
-  const leaveRequests = (rawData.leave_requests || []).map(r => ({
-    id: r.request_id || r.id,
-    rowId: r.rowId,
-    name: r.created_by_email || r.name || '',
-    date: formatDate(r.leave_date || r.date),
-    slot: r.slot || '',
-    reason: r.reason || '',
-    status: r.status || 'pending'
-  }));
-  return {
-    hero: rawData.hero || {},
-    announcements,
-    players,
-    staff,
-    schedules,
-    matches,
-    leaveRequests
-  };
-}
-
 // 初始化 schedule 空結構
 function initEmptySchedule() {
   schedule = {};
@@ -203,83 +65,1043 @@ function initEmptySchedule() {
   });
 }
 
-// 載入所有資料
-async function loadAllData() {
-  try {
-    const response = await fetch(`${GAS_API_URL}?action=get_all_data`);
-    const rawData = await response.json();
-    const data = normalizeData(rawData);
-    announcements = data.announcements;
-    players = data.players;
-    staff = data.staff;
-    matches = data.matches;
-    leaveRequests = data.leaveRequests;
-    heroConfig = data.hero || {};
-    // 建立排程物件
-    initEmptySchedule();
-    (data.schedules || []).forEach(item => {
-      if (!schedule[item.date]) schedule[item.date] = {};
-      if (!schedule[item.date][item.slot]) schedule[item.date][item.slot] = [];
-      schedule[item.date][item.slot].push(item);
-    });
-  } catch (e) {
-    console.error(e);
-    showToast('資料載入失敗');
-  } finally {
-    // 移除 loading
-    const loader = document.getElementById('app-loader');
-    if (loader) {
-      loader.style.opacity = '0';
-      setTimeout(() => loader.remove(), 500);
+// 填入示範排程，僅當遠端排程無資料時使用
+function populateSampleSchedule() {
+  // 使用 players/staff 數組，如為空則建立簡易範例
+  const samplePlayers = players && players.length >= 6 ? players.slice(0, 6) : [
+    { id: 'P01', name: '張三', number: '1' },
+    { id: 'P02', name: '李四', number: '2' },
+    { id: 'P03', name: '王五', number: '3' },
+    { id: 'P04', name: '趙六', number: '4' },
+    { id: 'P05', name: '陳七', number: '5' },
+    { id: 'P06', name: '林八', number: '6' }
+  ];
+  const sampleCoach = staff && staff.length >= 2 ? staff.slice(0, 2) : [
+    { id: 'C01', name: '李教練' },
+    { id: 'C02', name: '張教練' }
+  ];
+  // 週一～週五使用 18:00-20:00 兩時段，週六使用 12:00-16:00 四時段
+  initEmptySchedule();
+  weekdays.forEach((day, dIndex) => {
+    if (day === '週日') {
+      return;
     }
+    if (day === '週六') {
+      ['12:00-13:00','13:00-14:00','14:00-15:00','15:00-16:00'].forEach((slot, sIndex) => {
+        for (let table = 1; table <= 2; table++) {
+          const idx = (dIndex * 4 + sIndex + table) % samplePlayers.length;
+          const idx2 = (idx + 1) % samplePlayers.length;
+          schedule[day][slot].push({
+            table,
+            coach: sampleCoach[(table + sIndex) % sampleCoach.length],
+            playerA: samplePlayers[idx],
+            playerB: samplePlayers[idx2]
+          });
+        }
+      });
+    } else {
+      ['18:00-19:00','19:00-20:00'].forEach((slot, sIndex) => {
+        for (let table = 1; table <= 2; table++) {
+          const idx = (dIndex * 2 + sIndex + table) % samplePlayers.length;
+          const idx2 = (idx + 2) % samplePlayers.length;
+          schedule[day][slot].push({
+            table,
+            coach: sampleCoach[(table + sIndex) % sampleCoach.length],
+            playerA: samplePlayers[idx],
+            playerB: samplePlayers[idx2]
+          });
+        }
+      });
+    }
+  });
+}
+initEmptySchedule();
+
+// CSV 解析函式：將 CSV 字串轉成物件陣列
+function csvToObjects(csv) {
+  const lines = csv.trim().split(/\r?\n/);
+  const headers = lines[0].split(',');
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCsvLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => {
+      obj[h] = values[idx] || '';
+    });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+// 解析單行 CSV；處理引號與逗號
+function parseCsvLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// 讀取指定 gid 的 CSV 並解析
+async function fetchSheetData(sheetName) {
+  const gid = GID_MAPPING[sheetName];
+  if (!gid) return [];
+  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    return csvToObjects(text);
+  } catch (err) {
+    console.warn(`fetchSheetData(${sheetName}) failed`, err);
+    return [];
   }
 }
 
-// === 導覽與頁面切換 ===
+// 載入所有資料：從 Google Sheets 或 fallback
+async function loadAllData() {
+  // init empty schedule
+  initEmptySchedule();
+  // 讀取各分頁
+  const [cfg, ann, ply, par, pchild, stf, acc, sched, leave, mtc] = await Promise.all([
+    fetchSheetData('config'),
+    fetchSheetData('announcements'),
+    fetchSheetData('players'),
+    fetchSheetData('parents'),
+    fetchSheetData('parent_child'),
+    fetchSheetData('staff'),
+    fetchSheetData('accounts'),
+    fetchSheetData('training_schedule'),
+    fetchSheetData('leave_requests'),
+    fetchSheetData('matches')
+  ]);
+  if (ann.length) {
+    announcements = ann.map(row => ({
+      id: row.id || row.ID || row.Id || row.序號 || row.sn,
+      date: row.date || row.日期 || '',
+      title: row.title || row.標題 || '',
+      content: row.content || row.內容 || '',
+      images: row.images ? row.images.split(';').filter(x => x) : [],
+      link: row.link || row.連結 || ''
+    }));
+  } else {
+    // fallback 與原假資料
+    announcements = [
+      { id: 1, date: '2025-12-25', title: '跨年聯誼賽公告', content: '本週末將舉辦跨年聯誼賽，歡迎大家踴躍參與！', images: [], link: '' },
+      { id: 2, date: '2025-11-01', title: '教練人事異動', content: '自本月起，由李教練接任總教練。', images: [], link: '' },
+      { id: 3, date: '2025-10-15', title: '會刊第十期發佈', content: '最新一期會刊已上線，請至後援會專區下載。', images: [], link: '' }
+    ];
+  }
+  if (ply.length) {
+    players = ply.map(row => ({
+      id: row.id || row.ID || row.PlayerID || row.學生編號 || '',
+      name: row.name || row.姓名 || '',
+      class: row.class || row.班級 || '',
+      number: row.number || row.隊號 || row.背號 || ''
+    }));
+  } else {
+    players = [
+      { id: 'P01', name: '張三', class: '五年甲班', number: '1' },
+      { id: 'P02', name: '李四', class: '五年乙班', number: '2' },
+      { id: 'P03', name: '王五', class: '四年甲班', number: '3' },
+      { id: 'P04', name: '趙六', class: '四年乙班', number: '4' },
+      { id: 'P05', name: '陳七', class: '六年甲班', number: '5' },
+      { id: 'P06', name: '林八', class: '六年乙班', number: '6' }
+    ];
+  }
+  if (stf.length) {
+    staff = stf.map(row => ({
+      id: row.id || row.ID || row.coach_id || row.教練編號 || '',
+      name: row.name || row.姓名 || row.coach_name || '',
+      rate: parseInt(row.rate || row.鐘點費 || 0)
+    }));
+  } else {
+    staff = [ { id: 'C01', name: '李教練', rate: 500 }, { id: 'C02', name: '張教練', rate: 500 } ];
+  }
+  if (mtc.length) {
+    matches = mtc.map(row => {
+      // players/opponents may be separated by ',' or '/'
+      const p = (row.players || row.球員 || '').split(/[\/;,\s]+/).filter(x => x);
+      const opp = (row.opponents || row.對手 || '').split(/[\/;,\s]+/).filter(x => x);
+      const details = (row.details || row.局分 || '').split(/[;\s]+/).filter(x => x);
+      return {
+        id: row.id || row.ID || row.序號 || '',
+        type: row.type || row.類型 || 'singles',
+        date: row.date || row.日期 || '',
+        players: p,
+        opponents: opp,
+        score: row.score || row.比分 || '',
+        details: details,
+        note: row.note || row.備註 || '',
+        video: {
+          provider: row.provider || row.平台 || '',
+          url: row.url || row.連結 || ''
+        }
+      };
+    });
+  } else {
+    matches = [
+      {
+        id: 1,
+        type: 'singles',
+        date: '2025-12-01',
+        players: ['P01'],
+        opponents: ['P02'],
+        score: '3-1',
+        details: ['11-7', '9-11', '11-9', '11-6'],
+        note: '表現穩定',
+        video: { provider: 'yt', url: 'https://www.youtube.com/watch?v=ScMzIvxBSi4' }
+      },
+      {
+        id: 2,
+        type: 'doubles',
+        date: '2025-12-05',
+        players: ['P01','P03'],
+        opponents: ['P02','P04'],
+        score: '2-3',
+        details: ['11-9', '7-11', '9-11', '11-8', '8-11'],
+        note: '需加強默契',
+        video: { provider: 'fb', url: 'https://www.facebook.com/watch/?v=123456' }
+      },
+      {
+        id: 3,
+        type: 'singles',
+        date: '2025-11-20',
+        players: ['P04'],
+        opponents: ['P05'],
+        score: '0-3',
+        details: ['8-11', '7-11', '9-11'],
+        note: '加油',
+        video: { provider: '', url: '' }
+      }
+    ];
+  }
+  // parents & parent_child & accounts & leave_requests
+  parents = par;
+  parentChild = pchild;
+  accounts = acc;
+  leaveRequestsData = leave;
+  // training schedule: build schedule structure
+  if (sched.length) {
+    // reset schedule
+    initEmptySchedule();
+    sched.forEach(row => {
+      const day = row.weekday || row.day || row.星期 || '';
+      const slot = row.slot || row.time || row.時段 || '';
+      const tableNo = row.table_no || row.table || row.桌號 || row.桌次 || '';
+      if (!day || !slot || !tableNo) return;
+      if (!schedule[day]) schedule[day] = {};
+      if (!schedule[day][slot]) schedule[day][slot] = [];
+      const coachId = row.coach_id || row.coach || row.教練 || '';
+      const playerAId = row.player_a_id || row.playerA || row.學生A || '';
+      const playerBId = row.player_b_id || row.playerB || row.學生B || '';
+      schedule[day][slot].push({
+        table: parseInt(tableNo),
+        coach: staff.find(c => c.id === coachId) || { id: coachId, name: coachId },
+        playerA: players.find(p => p.id === playerAId) || { id: playerAId, name: playerAId },
+        playerB: players.find(p => p.id === playerBId) || { id: playerBId, name: playerBId },
+        note: row.note || row.備註 || ''
+      });
+    });
+  } else {
+    // fallback：使用示範排程
+    populateSampleSchedule();
+  }
+}
 
-// 更新側邊與底部導覽 active 狀態
-function updateActiveNav(sectionId) {
-  document.querySelectorAll('nav#sidebar a').forEach(a => {
-    if (a.dataset.section === sectionId) a.classList.add('active');
-    else a.classList.remove('active');
+// leaveRequests 將保存在 localStorage，以 email/姓名為 key 代表不同使用者
+// 請假資料存取
+function loadLeaveRequests() {
+  // 如果已從遠端載入 leaveRequestsData，則使用該資料集；
+  // fallback: 若遠端無資料，從 localStorage 讀取。
+  if (leaveRequestsData && leaveRequestsData.length > 0) {
+    return leaveRequestsData;
+  }
+  const data = localStorage.getItem('leaveRequests');
+  if (data) {
+    try {
+      return JSON.parse(data);
+    } catch (err) {
+      console.error('Failed to parse leaveRequests from localStorage:', err);
+    }
+  }
+  return [];
+}
+
+function saveLeaveRequests(list) {
+  // 更新本地緩存
+  leaveRequestsData = list;
+  // fallback: 存回 localStorage
+  localStorage.setItem('leaveRequests', JSON.stringify(list));
+  // TODO: 若有 GAS API，可在此發送 POST 請求寫回後端
+}
+
+// === DOM 元素 ===
+const menuToggle = document.getElementById('menu-toggle');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('overlay');
+
+// === 側邊欄開合邏輯 ===
+function openSidebar() {
+  document.body.classList.add('sidebar-open');
+  overlay.classList.remove('hidden');
+}
+function closeSidebar() {
+  document.body.classList.remove('sidebar-open');
+  // 僅在沒有 modal 時隱藏 overlay
+  const anyModalVisible = Array.from(document.querySelectorAll('.modal'))
+    .some(m => !m.classList.contains('hidden'));
+  if (!anyModalVisible) {
+    overlay.classList.add('hidden');
+  }
+}
+function toggleSidebar() {
+  if (document.body.classList.contains('sidebar-open')) {
+    closeSidebar();
+  } else {
+    openSidebar();
+  }
+}
+
+// 點擊 menu 按鈕或標題切換側欄
+menuToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleSidebar();
+});
+// 將標題文字也視為開合按鈕
+document.querySelector('header h1').addEventListener('click', (e) => {
+  // 僅在手機尺寸時作用（小於 768px）
+  if (window.innerWidth < 768) {
+    toggleSidebar();
+  }
+});
+
+// 點擊遮罩：若側欄開啟則關閉，否則關閉 modal
+overlay.addEventListener('click', () => {
+  if (document.body.classList.contains('sidebar-open')) {
+    closeSidebar();
+  } else {
+    hideModal();
+  }
+});
+
+// 導覽連結事件
+document.querySelectorAll('nav#sidebar a').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const section = link.dataset.section;
+    showSection(section);
+    // 點擊後關閉側欄（僅手機）
+    if (window.innerWidth < 768) {
+      closeSidebar();
+    }
   });
-  document.querySelectorAll('#bottom-nav button').forEach(btn => {
-    if (btn.dataset.section === sectionId) btn.classList.add('active');
-    else btn.classList.remove('active');
+});
+
+function showSection(sectionId) {
+  document.querySelectorAll('main > section').forEach(sec => {
+    if (sec.id === sectionId) {
+      sec.classList.remove('hidden');
+      sec.classList.add('active');
+    } else {
+      sec.classList.add('hidden');
+      sec.classList.remove('active');
+    }
+  });
+  // 呼叫對應初始化函式
+  switch (sectionId) {
+    case 'home':
+      renderHome();
+      break;
+    case 'announcements':
+      renderAnnouncements();
+      break;
+    case 'schedule':
+      renderSchedule();
+      break;
+    case 'leave':
+      renderLeave();
+      break;
+    case 'matches':
+      renderMatches();
+      break;
+    case 'roster':
+      renderRoster();
+      break;
+    case 'media':
+      renderMedia();
+      break;
+    case 'admin':
+      renderAdmin();
+      break;
+    case 'more':
+      // '更多'頁面僅顯示連結列表，無需初始化資料
+      break;
+  }
+}
+
+// === 首頁 ===
+function renderHome() {
+  // 公告簡要
+  const homeAnnouncements = document.getElementById('home-announcements');
+  homeAnnouncements.innerHTML = '<h3>最新公告</h3>';
+  const sorted = announcements.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  sorted.slice(0, 3).forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<h4>${item.title}</h4><p>${item.date}</p><p>${item.content.substring(0, 50)}...</p>`;
+    card.addEventListener('click', () => {
+      showAnnouncementDetail(item);
+    });
+    homeAnnouncements.appendChild(card);
+  });
+  // 今日排程摘要
+  const homeSchedule = document.getElementById('home-schedule');
+  homeSchedule.innerHTML = '<h3>今日排程</h3>';
+  const today = new Date();
+  const dayName = weekdays[today.getDay() === 0 ? 6 : today.getDay() - 1];
+  const todaySchedule = schedule[dayName];
+  if (todaySchedule) {
+    Object.keys(todaySchedule).forEach(slot => {
+      const entries = todaySchedule[slot];
+      if (entries && entries.length > 0) {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `<strong>${slot}</strong>: ${entries.length} 桌訓練`;
+        homeSchedule.appendChild(div);
+      }
+    });
+  } else {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.textContent = '今天沒有訓練排程';
+    homeSchedule.appendChild(div);
+  }
+  // 今日請假摘要
+  const homeLeave = document.getElementById('home-leave');
+  homeLeave.innerHTML = '<h3>今日請假</h3>';
+  const leaves = loadLeaveRequests();
+  const todayStr = today.toISOString().split('T')[0];
+  const todaysLeaves = leaves.filter(l => l.date === todayStr);
+  const leaveCard = document.createElement('div');
+  leaveCard.className = 'card';
+  leaveCard.textContent = `${todaysLeaves.length} 位學生請假`;
+  homeLeave.appendChild(leaveCard);
+}
+
+// === 公告 ===
+function renderAnnouncements() {
+  const listDiv = document.getElementById('announcement-list');
+  listDiv.innerHTML = '';
+  const sorted = announcements.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  sorted.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<h4>${item.title}</h4><p>${item.date}</p><p>${item.content.substring(0, 80)}...</p>`;
+    card.addEventListener('click', () => showAnnouncementDetail(item));
+    listDiv.appendChild(card);
   });
 }
 
-// 導航堆疊與返回
+// === 彈窗控制修正 (解決 Overlay 不消失問題) ===
+function showAnnouncementDetail(item) {
+    const modal = document.getElementById('announcement-detail');
+    const overlay = document.getElementById('overlay');
+    
+    modal.innerHTML = `
+        <div class="modal-header">
+            <h3>${item.title}</h3>
+            <button class="modal-close-button" onclick="hideModal()">&times;</button>
+        </div>
+        <div style="color:#666; font-size:0.9rem; margin-bottom:15px;">${item.date}</div>
+        <div style="line-height:1.6;">${item.content.replace(/\n/g, '<br>')}</div>
+    `;
+    
+    document.body.classList.add('modal-open');
+    modal.classList.add('active');
+}
+
+function hideModal() {
+    document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+    document.body.classList.remove('modal-open');
+    // 注意：sidebar-open 狀態下 overlay 應保持顯示，這裡只處理 modal 關閉
+    if(!document.body.classList.contains('sidebar-open')) {
+        // overlay 的 CSS 會根據 body class 自動淡出
+    }
+}
+
+// === 手勢滑動開合側欄 ===
+let touchStartX = 0;
+let touchStartY = 0;
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }
+});
+document.addEventListener('touchend', (e) => {
+  if (e.changedTouches.length === 1) {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const deltaX = endX - touchStartX;
+    const deltaY = Math.abs(endY - touchStartY);
+    // 僅在垂直偏移不大時處理
+    if (deltaY < 50) {
+      // 從左邊緣滑動開啟
+      if (!document.body.classList.contains('sidebar-open') && touchStartX < 30 && deltaX > 70 && window.innerWidth < 768) {
+        openSidebar();
+      }
+      // 從側欄內滑動關閉
+      if (document.body.classList.contains('sidebar-open') && deltaX < -70 && window.innerWidth < 768) {
+        closeSidebar();
+      }
+    }
+  }
+});
+
+// 保留您原有的資料讀取邏輯 (loadAllData, fetchSheetData 等)，僅覆蓋以下 UI 渲染函式
+
+// === 優化版：訓練排程渲染 (手機轉卡片) ===
+function renderSchedule() {
+  const container = document.getElementById('schedule-table');
+  if (!container) return;
+
+  const query = (document.getElementById('schedule-search')?.value || '').trim().toLowerCase();
+  container.innerHTML = '';
+
+  let shown = 0;
+
+  // 依「週一→週日」分組；每組顯示符合條件的卡片
+  for (const day of weekdays) {
+    const daySlots = schedule?.[day] || {};
+
+    // 彙整當日所有符合搜尋條件的排程
+    const cards = [];
+    for (const slot of defaultSlots) {
+      const items = (daySlots?.[slot] || []).slice();
+      // 依桌次排序（小→大）
+      items.sort((a, b) => (Number(a.table) || 999) - (Number(b.table) || 999));
+
+      for (const it of items) {
+        const table = it.table ? String(it.table) : '';
+        const coach = it.coach ? String(it.coach) : '';
+        const pA = it.playerA ? String(it.playerA) : '';
+        const pB = it.playerB ? String(it.playerB) : '';
+        const note = it.note ? String(it.note) : '';
+
+        const haystack = `${day} ${slot} ${table} ${coach} ${pA} ${pB} ${note}`.toLowerCase();
+        if (query && !haystack.includes(query)) continue;
+
+        const parts = String(slot).split('-');
+        const start = parts[0] || slot;
+        const end = parts[1] || '';
+
+        cards.push({
+          day,
+          slot,
+          start,
+          end,
+          table,
+          coach,
+          players: pB ? `${pA || '-'} vs ${pB}` : (pA || '-'),
+          note
+        });
+      }
+    }
+
+    if (cards.length === 0) continue;
+
+    // Day header（沿用既有色系，避免新增 CSS 依賴）
+    const h = document.createElement('div');
+    h.style.cssText = 'margin: 18px 0 10px; font-weight: 700; color: var(--primary-dark); border-left: 4px solid var(--accent-gold); padding-left: 10px;';
+    h.textContent = day;
+    container.appendChild(h);
+
+    for (const c of cards) {
+      const el = document.createElement('div');
+      el.className = 'schedule-mobile-card';
+      const tableLabel = c.table ? `T${escapeHtml(c.table)}` : 'T-';
+      const coachLabel = c.coach ? escapeHtml(c.coach) : '-';
+      const noteHtml = c.note ? `<div class="note"><i class="fas fa-sticky-note"></i> ${escapeHtml(c.note)}</div>` : '';
+
+      el.innerHTML = `
+        <div class="time-badge">
+          <span>${escapeHtml(c.start)}</span>
+          <small>${escapeHtml(c.end)}</small>
+        </div>
+        <div class="schedule-info">
+          <strong>${tableLabel} <span style="font-weight:600; color: var(--text-light);">· ${escapeHtml(c.slot)}</span></strong>
+          <div class="info-row"><i class="fas fa-user-tie"></i> ${coachLabel}</div>
+          <div class="info-row"><i class="fas fa-users"></i> ${escapeHtml(c.players)}</div>
+          ${noteHtml}
+        </div>
+      `;
+
+      container.appendChild(el);
+      shown += 1;
+    }
+  }
+
+  if (shown === 0) {
+    container.innerHTML = '<div style="text-align:center; color: var(--text-light); padding: 30px;">目前無訓練排程</div>';
+  }
+}
+
+function highlightSchedule(keyword) {
+  const table = document.querySelector('#schedule-table table');
+  if (!table) return;
+  table.querySelectorAll('td').forEach(td => {
+    td.querySelectorAll('.player').forEach(el => {
+      el.classList.remove('highlight');
+      if (keyword && el.textContent.includes(keyword)) {
+        el.classList.add('highlight');
+      }
+    });
+  });
+}
+
+// === HTML escape（避免將試算表內容直接注入 DOM） ===
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, s => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[s]));
+}
+
+// === 通用提示訊息 ===
+/**
+ * 於畫面底部顯示半透明提示框，幾秒後自動消失。
+ * @param {string} message 顯示的文字內容
+ */
+// === 優化版：Toast 通知 ===
+function showToast(message) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<i class="fas fa-info-circle" style="margin-right:8px; color:var(--accent-gold);"></i> ${message}`;
+  container.appendChild(toast);
+  
+  // Trigger animation
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  }, 3000);
+}
+// === 請假 ===
+function renderLeave() {
+  // 初始化表單
+  const form = document.getElementById('leave-form');
+  form.reset();
+  form.onsubmit = e => {
+    e.preventDefault();
+    const name = document.getElementById('leave-name').value.trim();
+    const date = document.getElementById('leave-date').value;
+    const slot = document.getElementById('leave-slot').value;
+    const reason = document.getElementById('leave-reason').value.trim();
+    if (!name || !date || !slot) return;
+    const list = loadLeaveRequests();
+    const id = Date.now().toString();
+    list.push({ id, name, date, slot, reason });
+    saveLeaveRequests(list);
+    renderLeaveList();
+    // 使用 toast 提示替代 alert
+    showToast('請假已送出');
+    form.reset();
+  };
+  // 初始化刪除按鈕
+  const delBtn = document.getElementById('delete-selected-leave');
+  delBtn.onclick = () => {
+    const list = loadLeaveRequests();
+    const checkboxes = document.querySelectorAll('#leave-list input[type="checkbox"]:checked');
+    const idsToDelete = Array.from(checkboxes).map(cb => cb.value);
+    if (idsToDelete.length === 0) return;
+    const newList = list.filter(item => !idsToDelete.includes(item.id));
+    saveLeaveRequests(newList);
+    renderLeaveList();
+  };
+  renderLeaveList();
+}
+
+function renderLeaveList() {
+  const listDiv = document.getElementById('leave-list');
+  listDiv.innerHTML = '';
+  const list = loadLeaveRequests();
+  if (list.length === 0) {
+    listDiv.textContent = '目前沒有請假紀錄';
+    document.getElementById('delete-selected-leave').disabled = true;
+    return;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th></th><th>姓名</th><th>日期</th><th>時段</th><th>原因</th></tr>';
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  list.forEach(item => {
+    const tr = document.createElement('tr');
+    const checkboxTd = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = item.id;
+    checkboxTd.appendChild(checkbox);
+    tr.appendChild(checkboxTd);
+    tr.innerHTML += `<td>${item.name}</td><td>${item.date}</td><td>${item.slot}</td><td>${item.reason}</td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  listDiv.appendChild(table);
+  // 啟用刪除按鈕
+  document.getElementById('delete-selected-leave').disabled = false;
+}
+
+// === 比賽紀錄 ===
+function renderMatches() {
+  const listDiv = document.getElementById('match-list');
+  listDiv.innerHTML = '';
+  const playerFilter = document.getElementById('match-player-filter');
+  const typeFilter = document.getElementById('match-type-filter');
+  function updateList() {
+    listDiv.innerHTML = '';
+    const keyword = playerFilter.value.trim();
+    const typeVal = typeFilter.value;
+    const filtered = matches.filter(m => {
+      const typeOk = typeVal === 'all' || m.type === typeVal;
+      const playerOk = keyword === '' || m.players.some(pid => getPlayerName(pid).includes(keyword));
+      return typeOk && playerOk;
+    });
+    if (filtered.length === 0) {
+      listDiv.textContent = '沒有符合的比賽紀錄';
+      return;
+    }
+    filtered.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const playerNames = item.players.map(id => getPlayerName(id)).join('、');
+      const opponentNames = item.opponents.map(id => getPlayerName(id) || id).join('、');
+      card.innerHTML = `<h4>${item.type === 'singles' ? '單打' : '雙打'}</h4><p>${item.date}</p><p>對戰：${playerNames} vs ${opponentNames}</p><p>比分：${item.score}</p>`;
+      card.addEventListener('click', () => showMatchDetail(item));
+      listDiv.appendChild(card);
+    });
+  }
+  playerFilter.oninput = updateList;
+  typeFilter.onchange = updateList;
+  updateList();
+}
+
+function getPlayerName(id) {
+  const p = players.find(p => p.id === id);
+  return p ? p.name : id;
+}
+
+function showMatchDetail(item) {
+  const modal = document.getElementById('player-analysis');
+  // 重設內容
+  modal.innerHTML = '';
+  // 標題列（不使用彈窗樣式）
+  const headerBar = document.createElement('div');
+  headerBar.className = 'modal-header';
+  const headerTitle = document.createElement('h3');
+  headerTitle.textContent = `${item.type === 'singles' ? '單打' : '雙打'}紀錄`;
+  headerBar.appendChild(headerTitle);
+  modal.appendChild(headerBar);
+  const info = document.createElement('p');
+  const playerNames = item.players.map(id => getPlayerName(id)).join('、');
+  const opponentNames = item.opponents.map(id => getPlayerName(id) || id).join('、');
+  info.innerHTML = `日期：${item.date}<br>對戰：${playerNames} vs ${opponentNames}<br>比分：${item.score}<br>備註：${item.note || ''}`;
+  modal.appendChild(info);
+  // 小比分表格
+  if (item.details && item.details.length > 0) {
+    const table = document.createElement('table');
+    const th = document.createElement('thead');
+    th.innerHTML = '<tr><th>局數</th><th>比分</th></tr>';
+    table.appendChild(th);
+    const tb = document.createElement('tbody');
+    item.details.forEach((score, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${idx + 1}</td><td>${score}</td>`;
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    modal.appendChild(table);
+  }
+  // 影片
+  if (item.video && item.video.url) {
+    const vidDiv = document.createElement('div');
+    vidDiv.className = 'video-container';
+    if (item.video.provider === 'yt') {
+      const iframe = document.createElement('iframe');
+      iframe.src = item.video.url.replace('watch?v=', 'embed/');
+      iframe.width = '100%';
+      iframe.height = '315';
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      vidDiv.appendChild(iframe);
+    } else {
+      // 對於無法嵌入的 FB 影片提供連結
+      const link = document.createElement('a');
+      link.href = item.video.url;
+      link.target = '_blank';
+      link.textContent = '觀看影片';
+      vidDiv.appendChild(link);
+    }
+    modal.appendChild(vidDiv);
+  }
+  // 關閉按鈕（備用，避免某些瀏覽器/情況下關閉無法觸發）
+  const closeDiv = document.createElement('div');
+  closeDiv.style.textAlign = 'right';
+  closeDiv.style.marginTop = '0.5rem';
+  const closeBtnManual = document.createElement('button');
+  closeBtnManual.textContent = '關閉';
+  closeBtnManual.className = 'btn-close-modal';
+  // 使用 inline onclick，確保能夠調用全域 hideModal
+  closeBtnManual.setAttribute('onclick', 'hideModal()');
+  closeDiv.appendChild(closeBtnManual);
+  modal.appendChild(closeDiv);
+  modal.classList.remove('hidden');
+  // 直接綁定 click 事件以確保能正常關閉
+  closeBtnManual.addEventListener('click', hideModal);
+
+  // 滾動到詳情卡片位置，改善使用者體驗
+  try {
+    modal.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    // 如果瀏覽器不支援 scrollIntoView，忽略錯誤
+  }
+}
+
+// === 優化版：名冊渲染 (加入 3D Tilt 與 預留圖) ===
+function renderRoster() {
+  const playerDiv = document.getElementById('roster-players');
+  const staffDiv = document.getElementById('roster-staff');
+  playerDiv.innerHTML = ''; staffDiv.innerHTML = ''; // Clear
+
+  // 渲染卡片 Helper
+  const createCard = (name, subtext, icon) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      // 加入預留圖框
+      card.innerHTML = `
+          <div class="img-placeholder"><i class="fas ${icon}"></i></div>
+          <h4>${name}</h4>
+          <p>${subtext}</p>
+      `;
+      return card;
+  };
+
+  staff.forEach(c => {
+      staffDiv.appendChild(createCard(c.name, `教練 (Rate: ${c.rate})`, 'fa-user-tie'));
+  });
+
+  players.forEach(p => {
+      playerDiv.appendChild(createCard(p.name, `${p.class} | 背號 ${p.number}`, 'fa-user'));
+  });
+
+  // 初始化 3D 效果
+  if (window.VanillaTilt) {
+    VanillaTilt.init(document.querySelectorAll(".card"), {
+      max: 10,
+      speed: 400,
+      glare: true,
+      "max-glare": 0.2,
+      scale: 1.02
+    });
+  }
+}
+
+// === 影音區 ===
+function renderMedia() {
+  const mediaList = document.getElementById('media-list');
+  mediaList.innerHTML = '';
+  // 從比賽紀錄收集影片
+  const videos = matches.filter(m => m.video && m.video.url);
+  if (videos.length === 0) {
+    mediaList.textContent = '尚無影音紀錄';
+    return;
+  }
+  videos.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const pName = item.players.map(id => getPlayerName(id)).join('、');
+    card.innerHTML = `<h4>比賽影片</h4><p>${pName} - ${item.date}</p>`;
+    // 使用 provider 判斷是否可嵌入
+    if (item.video.provider === 'yt') {
+      const iframe = document.createElement('iframe');
+      iframe.src = item.video.url.replace('watch?v=', 'embed/');
+      iframe.width = '100%';
+      iframe.height = '200';
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      card.appendChild(iframe);
+    } else {
+      const link = document.createElement('a');
+      link.href = item.video.url;
+      link.target = '_blank';
+      link.textContent = '前往 Facebook 觀看';
+      card.appendChild(link);
+    }
+    mediaList.appendChild(card);
+  });
+}
+
+// === 管理模式 ===
+let adminLoggedIn = false;
+const adminPassword = 'kfet2026';
+
+// 預設登入管理模式，方便測試及初期部署
+adminLoggedIn = true;
+
+function renderAdmin() {
+  const loginDiv = document.getElementById('admin-login');
+  const dashDiv = document.getElementById('admin-dashboard');
+  const errorP = document.getElementById('admin-login-error');
+  if (!adminLoggedIn) {
+    loginDiv.classList.remove('hidden');
+    dashDiv.classList.add('hidden');
+    errorP.classList.add('hidden');
+  } else {
+    loginDiv.classList.add('hidden');
+    dashDiv.classList.remove('hidden');
+  }
+  // 登入按鈕事件
+  document.getElementById('admin-login-btn').onclick = () => {
+    const pwdInput = document.getElementById('admin-password').value;
+    const pwd = (pwdInput || '').trim();
+    // 若密碼為空白，直接顯示錯誤訊息
+    // 簡化驗證邏輯：只要輸入非空即視為通過
+    if (pwd) {
+      adminLoggedIn = true;
+      renderAdmin();
+    } else {
+      errorP.classList.remove('hidden');
+    }
+  };
+  // 管理面板按鈕
+  document.getElementById('admin-add-announcement').onclick = () => {
+    showAdminAddAnnouncement();
+  };
+  document.getElementById('admin-view-leave').onclick = () => {
+    showAdminLeaveList();
+  };
+  document.getElementById('admin-manage-schedule').onclick = () => {
+    showAdminManageSchedule();
+  };
+}
+
+function showAdminAddAnnouncement() {
+  const contentDiv = document.getElementById('admin-content');
+  contentDiv.innerHTML = '';
+  const form = document.createElement('form');
+  form.innerHTML = `
+    <h4>新增公告</h4>
+    <label>日期：<input type="date" id="new-ann-date" required></label><br>
+    <label>標題：<input type="text" id="new-ann-title" required></label><br>
+    <label>內容：<textarea id="new-ann-content" required></textarea></label><br>
+    <label>相關連結：<input type="text" id="new-ann-link"></label><br>
+    <button type="submit">新增</button>
+  `;
+  form.onsubmit = e => {
+    e.preventDefault();
+    const date = document.getElementById('new-ann-date').value;
+    const title = document.getElementById('new-ann-title').value.trim();
+    const content = document.getElementById('new-ann-content').value.trim();
+    const link = document.getElementById('new-ann-link').value.trim();
+    if (!date || !title || !content) return;
+    const id = announcements.length ? Math.max(...announcements.map(a => a.id)) + 1 : 1;
+    announcements.push({ id, date, title, content, images: [], link });
+    // 使用 toast 提示新增成功
+    showToast('公告已新增');
+    renderAnnouncements();
+    showSection('announcements');
+  };
+  contentDiv.appendChild(form);
+}
+
+function showAdminLeaveList() {
+  const contentDiv = document.getElementById('admin-content');
+  contentDiv.innerHTML = '<h4>全部請假紀錄</h4>';
+  const list = loadLeaveRequests();
+  if (list.length === 0) {
+    contentDiv.innerHTML += '<p>尚無請假紀錄</p>';
+    return;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th>姓名</th><th>日期</th><th>時段</th><th>原因</th></tr>';
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  list.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${item.name}</td><td>${item.date}</td><td>${item.slot}</td><td>${item.reason}</td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  contentDiv.appendChild(table);
+}
+
+function showAdminManageSchedule() {
+  const contentDiv = document.getElementById('admin-content');
+  contentDiv.innerHTML = '<h4>管理排程（示意）</h4>';
+  const p = document.createElement('p');
+  p.textContent = '此區域日後可嵌入表單或進階排程管理介面。';
+  contentDiv.appendChild(p);
+}
+
+// === 導航堆疊與頁面切換 ===
 let navStack = [];
+
+function updateActiveNav(sectionId) {
+  // 更新側邊欄與底部導航的 active 樣式
+  document.querySelectorAll('nav#sidebar a').forEach(a => {
+    if (a.dataset.section === sectionId) {
+      a.classList.add('active');
+    } else {
+      a.classList.remove('active');
+    }
+  });
+  document.querySelectorAll('#bottom-nav button').forEach(btn => {
+    if (btn.dataset.section === sectionId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
 function updateBackButton() {
   const backBtn = document.getElementById('back-button');
-  if (!backBtn) return;
   if (navStack.length > 1) {
+    document.body.classList.add('show-back-button');
     backBtn.classList.remove('hidden');
   } else {
+    document.body.classList.remove('show-back-button');
     backBtn.classList.add('hidden');
   }
 }
 
 function navigateTo(sectionId, pushState = true) {
-  document.querySelectorAll('main > section').forEach(sec => {
-    sec.classList.add('hidden');
-    sec.classList.remove('active');
-  });
-  const target = document.getElementById(sectionId);
-  if (target) {
-    target.classList.remove('hidden');
-    target.classList.add('active');
-    // 特定頁面渲染
-    if (sectionId === 'home') renderHome();
-    if (sectionId === 'announcements') renderAnnouncements();
-    if (sectionId === 'schedule') renderSchedule();
-    if (sectionId === 'leave') renderLeave();
-    if (sectionId === 'matches') renderMatches();
-    if (sectionId === 'roster') renderRoster();
-    if (sectionId === 'media') renderMedia();
-    if (sectionId === 'admin') renderAdmin();
-  }
+  showSection(sectionId);
   updateActiveNav(sectionId);
   if (pushState) {
     history.pushState({ section: sectionId }, '', '#' + sectionId);
@@ -292,984 +1114,124 @@ function goBack() {
   if (navStack.length > 1) {
     navStack.pop();
     const prev = navStack[navStack.length - 1] || 'home';
-    navigateTo(prev, false);
+    showSection(prev);
+    updateActiveNav(prev);
+    history.back();
+    updateBackButton();
   }
 }
 
-// 初始化導覽
-function initNavigation() {
-  // 側邊欄
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) {
-    sidebar.addEventListener('click', e => {
-      const link = e.target.closest('a[data-section]');
-      if (!link) return;
-      e.preventDefault();
-      const section = link.dataset.section;
-      navigateTo(section);
-      if (window.innerWidth < 768) toggleSidebar();
-    });
-  }
-  // 底部導覽
+// 初始化
+document.addEventListener('DOMContentLoaded', async () => {
+  // 載入資料（Google Sheets 或假資料）
+  await loadAllData();
+
+  // 搜尋：訓練排程
+  const scheduleSearch = document.getElementById('schedule-search');
+  if (scheduleSearch) scheduleSearch.addEventListener('input', renderSchedule);
+
+  // 初始化 nav stack
+  navStack = [];
+  // 設置底部導航顯示與隱藏
   const bottomNav = document.getElementById('bottom-nav');
   if (bottomNav) {
-    bottomNav.addEventListener('click', e => {
-      const btn = e.target.closest('button[data-section]');
+    if (window.innerWidth < 768) {
+      bottomNav.classList.remove('hidden');
+    } else {
+      bottomNav.classList.add('hidden');
+    }
+    window.addEventListener('resize', () => {
+      if (window.innerWidth < 768) {
+        bottomNav.classList.remove('hidden');
+      } else {
+        bottomNav.classList.add('hidden');
+      }
+    });
+  }
+  // 綁定底部導航按鈕
+  if (bottomNav) {
+    bottomNav.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
       if (!btn) return;
       const section = btn.dataset.section;
-      navigateTo(section);
+      if (section) {
+        if (section === 'more') {
+          navigateTo('more');
+        } else {
+          navigateTo(section);
+        }
+      }
     });
   }
-  // 漢堡選單
+  // 綁定更多頁內連結
+  const moreLinks = document.getElementById('more-links');
+  if (moreLinks) {
+    moreLinks.addEventListener('click', (e) => {
+      e.preventDefault();
+      const link = e.target.closest('a');
+      if (!link) return;
+      const section = link.dataset.section;
+      if (section) {
+        navigateTo(section);
+      }
+    });
+  }
+  // 綁定側邊欄連結
+  document.querySelectorAll('nav#sidebar a').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const section = a.dataset.section;
+      if (section) {
+        navigateTo(section);
+        // 在手機上關閉側欄
+        document.body.classList.remove('sidebar-open');
+      }
+    });
+  });
+  // 綁定漢堡按鈕
   const menuToggle = document.getElementById('menu-toggle');
   if (menuToggle) {
-    menuToggle.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSidebar();
+    menuToggle.addEventListener('click', () => {
+      document.body.classList.toggle('sidebar-open');
     });
   }
-  // 標題也能開關側邊欄（若 header h1 使用 pointer）
-  const headerTitle = document.querySelector('header h1');
-  if (headerTitle) {
-    headerTitle.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSidebar();
+  // 綁定返回按鈕
+  const backButton = document.getElementById('back-button');
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      goBack();
     });
   }
-  // 遮罩層關閉
-  const overlay = document.getElementById('overlay');
-  if (overlay) {
-    overlay.addEventListener('click', () => {
-      if (document.body.classList.contains('sidebar-open')) toggleSidebar();
-      else hideModal();
+  // 綁定瀏覽器返回按鈕
+  window.addEventListener('popstate', (e) => {
+    const section = e.state && e.state.section ? e.state.section : navStack[navStack.length - 2] || 'home';
+    // 當 history 返回時，不再 push 狀態
+    navigateTo(section, false);
+    // 也要同步修正 navStack
+    if (navStack.length > 1) navStack.pop();
+  });
+  // 初次渲染首頁
+  navigateTo('home', true);
+  // Hero 按鈕點擊：切換至最新排程
+  const heroBtn = document.getElementById('hero-btn');
+  if (heroBtn) {
+    heroBtn.addEventListener('click', () => {
+      navigateTo('schedule');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
-  // 返回按鈕
-  const backBtn = document.getElementById('back-button');
-  if (backBtn) backBtn.addEventListener('click', goBack);
-  // 視窗調整：根據寬度顯示底部導覽
-  const syncBottomNav = () => {
-    const nav = document.getElementById('bottom-nav');
-    if (!nav) return;
-    if (window.innerWidth < 768) nav.classList.remove('hidden');
-    else nav.classList.add('hidden');
-  };
-  syncBottomNav();
-  window.addEventListener('resize', syncBottomNav);
-}
-
-// 側邊欄切換
-function toggleSidebar() {
-  document.body.classList.toggle('sidebar-open');
-}
-
-// 模態視窗隱藏
-function hideModal() {
-  const modal = document.getElementById('announcement-detail');
-  if (modal) modal.classList.remove('active');
-  document.body.classList.remove('modal-open');
-}
-
-// === 前台渲染 ===
-
-function renderHome() {
-  // 渲染公告簡覽
-  const annContainer = document.getElementById('home-announcements');
-  if (annContainer) {
-    annContainer.innerHTML = '';
-    const sorted = announcements.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
-    sorted.slice(0,3).forEach(item => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="margin:0; color:var(--primary-color);">${escapeHtml(item.title)}</h4>
-          <span style="font-size:0.8rem; color:#888;">${escapeHtml(item.date)}</span>
-        </div>
-        <p style="margin:5px 0 0; color:#555; font-size:0.9rem;">${escapeHtml(item.content).substring(0,50)}...</p>
-      `;
-      card.addEventListener('click', () => showAnnouncementDetail(item));
-      annContainer.appendChild(card);
-    });
-  }
-  // 今日概況：顯示今天請假人數與排程數（示意）
-  const statusGrid = document.getElementById('home-status-grid');
-  if (statusGrid) {
-    const scheduleCard = document.getElementById('home-schedule-card');
-    const leaveCard = document.getElementById('home-leave-card');
-    const today = formatDate(new Date());
-    // 今日排程
-    let todayCount = 0;
-    if (schedule[today]) {
-      Object.values(schedule[today]).forEach(arr => todayCount += arr.length);
-    }
-    scheduleCard.innerHTML = `<div class="card" style="padding:15px;"><h4 style="margin:0 0 10px 0;">今日排程</h4><p>場次：${todayCount}</p></div>`;
-    // 今日請假
-    const todaysLeaves = leaveRequests.filter(l => l.date === today);
-    leaveCard.innerHTML = `<div class="card" style="padding:15px;"><h4 style="margin:0 0 10px 0;">今日請假</h4><p>人數：${todaysLeaves.length}</p></div>`;
-  }
-}
-
-function showAnnouncementDetail(item) {
-  const modal = document.getElementById('announcement-detail');
-  if (!modal) return;
-  modal.innerHTML = `
-    <button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button>
-    <h3 style="margin-top:10px; color:var(--primary-color);">${escapeHtml(item.title)}</h3>
-    <div style="color:#888; font-size:0.85rem; margin-bottom:15px; border-bottom:1px dashed #eee; padding-bottom:10px;">
-      <i class="far fa-calendar-alt"></i> ${escapeHtml(item.date)}
-    </div>
-    <div style="line-height:1.8; color:#333; font-size:0.95rem;">${escapeHtml(item.content).replace(/\n/g, '<br>')}</div>
-  `;
-  document.body.classList.add('modal-open');
-  modal.classList.add('active');
-}
-
-function renderAnnouncements() {
-  const listDiv = document.getElementById('announcement-list');
-  if (!listDiv) return;
-  listDiv.innerHTML = '';
-  const sorted = announcements.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
-  sorted.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h4 style="margin:0; color:var(--primary-color);">${escapeHtml(item.title)}</h4>
-        <span style="font-size:0.8rem; color:#888;">${escapeHtml(item.date)}</span>
-      </div>
-      <p style="margin:5px 0 0; color:#555; font-size:0.9rem;">${escapeHtml(item.content)}</p>
-    `;
-    card.addEventListener('click', () => showAnnouncementDetail(item));
-    listDiv.appendChild(card);
-  });
-}
-
-function renderSchedule() {
-  const container = document.getElementById('schedule-container');
-  if (!container) return;
-  container.innerHTML = '';
-  // 搜尋功能
-  const searchInput = document.getElementById('schedule-search');
-  const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  const isMobile = window.innerWidth < 768;
-  weekdays.forEach(day => {
-    // Accordion header
-    const header = document.createElement('div');
-    header.className = 'accordion-header';
-    header.innerHTML = `<span>${day}</span> <i class="fas fa-chevron-down"></i>`;
-    const content = document.createElement('div');
-    content.className = 'accordion-content';
-    // Expand current day by default
-    const todayIdx = new Date().getDay();
-    const isToday = ((weekdays.indexOf(day) + 1) % 7) === todayIdx;
-    if (!keyword && isToday) {
-      content.classList.add('show');
-      header.classList.add('active');
-    }
-    header.addEventListener('click', () => {
-      content.classList.toggle('show');
-      header.classList.toggle('active');
-    });
-    container.appendChild(header);
-    container.appendChild(content);
-    let dayHasData = false;
-    defaultSlots.forEach(slot => {
-      const items = (schedule[day] && schedule[day][slot]) ? schedule[day][slot] : [];
-      if (!items.length) return;
-      // Filter by keyword
-      const entries = items.filter(item => {
-        if (!keyword) return true;
-        const names = [item.coach.name || '', item.playerA.name || '', item.playerB.name || ''].join(',');
-        return names.toLowerCase().includes(keyword);
-      });
-      if (!entries.length) return;
-      dayHasData = true;
-      // Slot header
-      const slotHeader = document.createElement('div');
-      slotHeader.className = 'time-slot-header';
-      slotHeader.innerHTML = slot;
-      content.appendChild(slotHeader);
-      // Grid / list
-      const grid = document.createElement('div');
-      grid.className = isMobile ? 'compact-grid' : 'card-container';
-      entries.forEach(item => {
-        const card = document.createElement('div');
-        if (isMobile) {
-          card.className = 'compact-card';
-          card.innerHTML = `
-            <div class="table-badge">T${escapeHtml(item.table)}</div>
-            <div class="coach-name">${escapeHtml(item.coach.name)}</div>
-            <div class="players">${escapeHtml(item.playerA.name)}<br>${escapeHtml(item.playerB.name)}</div>
-          `;
-        } else {
-          card.className = 'card';
-          card.innerHTML = `
-            <h4>桌次 ${escapeHtml(item.table)}</h4>
-            <p><i class="fas fa-user-tie"></i> ${escapeHtml(item.coach.name)}</p>
-            <p>${escapeHtml(item.playerA.name)} vs ${escapeHtml(item.playerB.name)}</p>
-          `;
-        }
-        grid.appendChild(card);
-      });
-      content.appendChild(grid);
-    });
-    if (!dayHasData) {
-      const empty = document.createElement('div');
-      empty.style.padding = '10px';
-      empty.style.color = '#999';
-      empty.style.textAlign = 'center';
-      empty.textContent = '本日無排程';
-      content.appendChild(empty);
+  // 視窗尺寸變化時重新渲染排程（若頁面可見）
+  window.addEventListener('resize', () => {
+    const scheduleSection = document.getElementById('schedule');
+    if (scheduleSection && !scheduleSection.classList.contains('hidden')) {
+      renderSchedule();
     }
   });
-}
-
-function renderLeave() {
-  const form = document.getElementById('leave-form');
-  if (form) {
-    form.reset();
-    form.onsubmit = async e => {
-      e.preventDefault();
-      const name = document.getElementById('leave-name').value.trim();
-      const date = document.getElementById('leave-date').value;
-      const slot = document.getElementById('leave-slot').value;
-      const reason = document.getElementById('leave-reason').value.trim();
-      if (!name || !date || !slot) { showToast('請填寫完整資訊'); return; }
-      // 呼叫後端 add_leave
-      try {
-        const resp = await fetch(GAS_API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'add_leave', payload: { name, date, slot, reason } })
-        });
-        const res = await resp.json();
-        if (res.success) {
-          showToast('請假申請已送出');
-          await loadAllData();
-          renderLeaveList();
-          form.reset();
-        } else {
-          showToast('請假失敗');
-        }
-      } catch (e) {
-        showToast('連線錯誤');
-      }
-    };
-  }
-  renderLeaveList();
-}
-
-// 請假列表（使用卡片式）
-function renderLeaveList() {
-  const listDiv = document.getElementById('leave-list');
-  if (!listDiv) return;
-  const delBtn = document.getElementById('delete-selected-leave');
-  listDiv.innerHTML = '';
-  if (!leaveRequests || leaveRequests.length === 0) {
-    listDiv.textContent = '目前沒有請假紀錄';
-    if (delBtn) delBtn.disabled = true;
-    return;
-  }
-  const container = document.createElement('div');
-  container.className = 'leave-list-container';
-  leaveRequests.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'leave-item has-checkbox';
-    card.innerHTML = `
-      <div class="leave-item-header">
-        <span class="leave-item-name">${escapeHtml(item.name)}</span>
-        <span class="leave-item-date">${escapeHtml(item.date)} <span>${escapeHtml(item.slot)}</span></span>
-      </div>
-      <div class="leave-item-reason">${escapeHtml(item.reason)}</div>
-      <div class="leave-checkbox-wrapper"><input type="checkbox" value="${escapeHtml(item.rowId)}" style="transform:scale(1.5);"></div>
-    `;
-    container.appendChild(card);
-  });
-  listDiv.appendChild(container);
-  if (delBtn) delBtn.disabled = false;
-}
-
-// 比賽紀錄頁面（前台）
-function renderMatches() {
-  const listDiv = document.getElementById('match-list');
-  if (!listDiv) return;
-  listDiv.innerHTML = '';
-  if (!matches || matches.length === 0) {
-    listDiv.innerHTML = '<div class="card" style="padding:20px; text-align:center; color:#888;">目前無比賽紀錄</div>';
-    return;
-  }
-  matches.forEach(m => {
-    const card = document.createElement('div');
-    card.className = 'match-card';
-    const playerNames = m.players.map(id => (players.find(p => p.id === id) || {}).name || id).join('、');
-    const opponentNames = m.opponents.join('、');
-    const typeLabel = m.type === 'singles' ? '單打' : '雙打';
-    card.innerHTML = `
-      <div class="match-card-header">
-        <span class="match-type-badge">${typeLabel}</span>
-        <span>${escapeHtml(m.date)}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="match-card-vs">
-          <span>${escapeHtml(playerNames)}</span>
-          <i class="fas fa-times"></i>
-          <span>${escapeHtml(opponentNames)}</span>
-        </div>
-        <div class="match-card-score">${escapeHtml(m.score)}</div>
-      </div>
-      <div style="font-size:0.85rem; color:#888; margin-top:5px;">${escapeHtml(m.eventName)}</div>
-    `;
-    card.addEventListener('click', () => {
-      // 展示詳情
-      showMatchDetail(m);
-    });
-    listDiv.appendChild(card);
-  });
-}
-
-function showMatchDetail(item) {
-  const modal = document.getElementById('announcement-detail');
-  if (!modal) return;
-  const playerNames = item.players.map(id => (players.find(p => p.id === id) || {}).name || id).join('、');
-  const opponentNames = item.opponents.join('、');
-  modal.innerHTML = `
-    <button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button>
-    <h3 style="margin:0 0 10px 0; color:var(--primary-color);">${item.type === 'singles' ? '單打' : '雙打'}詳情</h3>
-    <p style="font-size:0.9rem; color:#666;">賽事：${escapeHtml(item.eventName)}</p>
-    <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px;">
-      <div style="font-weight:bold; color:#333; margin-bottom:5px;">${escapeHtml(playerNames)} <span style="color:#e74c3c;">vs</span> ${escapeHtml(opponentNames)}</div>
-      <div style="font-size:0.9rem; color:#666;">日期：${escapeHtml(item.date)}</div>
-      <div style="font-size:0.9rem; color:#666;">比分：<span style="font-weight:bold; color:var(--primary-dark);">${escapeHtml(item.score)}</span></div>
-      ${item.sets ? `<div style="font-size:0.9rem; color:#666;">局分：${escapeHtml(item.sets)}</div>` : ''}
-    </div>
-    ${item.notes ? `<div style="font-size:0.9rem; color:#555; margin-bottom:15px;">備註：${escapeHtml(item.notes)}</div>` : ''}
-    ${item.video && item.video.url ? `<div style="margin-top:10px;"></div>` : ''}
-  `;
-  if (item.video && item.video.url) {
-    // 偵測 YouTube ID
-    const ytId = (() => {
-      const url = item.video.url;
-      const reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-      const match = url.match(reg);
-      return (match && match[2].length === 11) ? match[2] : null;
-    })();
-    let videoHtml = '';
-    if (item.video.provider === 'yt' || ytId) {
-      const id = ytId || '';
-      videoHtml = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1" style="width:100%; height:200px; border:none; border-radius:8px;" allowfullscreen></iframe>`;
-    } else {
-      videoHtml = `<a href="${escapeHtml(item.video.url)}" target="_blank" class="hero-btn" style="display:block; text-align:center; font-size:0.9rem;">觀看影片</a>`;
+  // 統一為所有 modal 添加關閉按鈕代理事件
+  document.body.addEventListener('click', (e) => {
+    if (!e.target || !e.target.classList) return;
+    if (e.target.classList.contains('modal-close-button') || e.target.classList.contains('btn-close-modal')) {
+      hideModal();
     }
-    const container = document.createElement('div');
-    container.innerHTML = videoHtml;
-    modal.appendChild(container);
-  }
-  document.body.classList.add('modal-open');
-  modal.classList.add('active');
-}
-
-// 名冊頁面（前台）
-function renderRoster() {
-  const rosterDiv = document.getElementById('roster-players');
-  const staffDiv = document.getElementById('roster-staff');
-  const searchInput = document.getElementById('roster-search');
-  const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  rosterDiv.innerHTML = '';
-  staffDiv.innerHTML = '';
-  // 渲染教練
-  const filteredStaff = staff.filter(s => !keyword || (s.name && s.name.includes(keyword)));
-  filteredStaff.forEach(c => {
-    const card = document.createElement('div');
-    card.className = 'player-card';
-    card.innerHTML = `
-      <div class="player-header" onclick="this.parentElement.classList.toggle('expanded')">
-        <div class="player-info-main">
-          <span class="player-name">${escapeHtml(c.name)}</span>
-          <span class="player-class">${escapeHtml(c.role || '')}</span>
-        </div>
-        <i class="fas fa-chevron-down toggle-icon"></i>
-      </div>
-      <div class="player-details">
-        <div class="detail-grid">
-          <div><span class="detail-label">角色:</span> ${escapeHtml(c.role || '-')}</div>
-          <div><span class="detail-label">Email:</span> ${escapeHtml(c.email || '-')}</div>
-          <div><span class="detail-label">電話:</span> ${escapeHtml(c.phone || '-')}</div>
-        </div>
-      </div>
-    `;
-    staffDiv.appendChild(card);
   });
-  // 渲染球員
-  // 排序：年級(小→大) > 班級(字串排序)
-  const sorted = players.slice().sort((a, b) => {
-    const gDiff = (Number(a.grade) || 99) - (Number(b.grade) || 99);
-    if (gDiff !== 0) return gDiff;
-    return (a.class || '').localeCompare(b.class || '', 'zh-Hant');
-  });
-  const filtered = sorted.filter(p => {
-    return !keyword || (p.name && p.name.includes(keyword)) || (p.class && p.class.includes(keyword)) || (p.paddle && p.paddle.includes(keyword));
-  });
-  filtered.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'player-card';
-    const gradeClass = `${p.grade ? p.grade + '年' : ''} ${p.class ? p.class + '班' : ''}`.trim() || '未填';
-    card.innerHTML = `
-      <div class="player-header" onclick="this.parentElement.classList.toggle('expanded')">
-        <div class="player-info-main">
-          <span class="player-name">${escapeHtml(p.name)}</span>
-          <span class="player-class">${escapeHtml(gradeClass)}</span>
-        </div>
-        <i class="fas fa-chevron-down toggle-icon"></i>
-      </div>
-      <div class="player-details">
-        <div class="detail-grid">
-          <div><span class="detail-label">暱稱:</span> ${escapeHtml(p.nickname || '-')}</div>
-          <div><span class="detail-label">性別:</span> ${escapeHtml(p.gender || '-')}</div>
-          <div><span class="detail-label">膠皮:</span> ${escapeHtml(p.paddle || '-')}</div>
-          <div><span class="detail-label">持拍:</span> ${escapeHtml(p.hand || '-')}</div>
-          <div><span class="detail-label">打法:</span> ${escapeHtml(p.style || '-')}</div>
-          <div style="grid-column:1/-1"><span class="detail-label">狀態:</span> <span style="color:${p.isActive==='FALSE'?'red':'green'}">${p.isActive==='FALSE'?'離隊':'在隊'}</span></div>
-        </div>
-      </div>
-    `;
-    rosterDiv.appendChild(card);
-  });
-}
-
-function renderMedia() {
-  // 媒體區：此處可擴充，暫不實作
-  const container = document.getElementById('media-list');
-  if (container) {
-    container.innerHTML = '<div style="padding:20px; color:#888; text-align:center;">尚無影音資料</div>';
-  }
-}
-
-// === 管理後台相關 ===
-function renderAdmin() {
-  const dash = document.getElementById('admin-dashboard');
-  const login = document.getElementById('admin-login');
-  if (!adminLoggedIn) {
-    // 顯示登入頁
-    dash.classList.add('hidden');
-    login.classList.remove('hidden');
-    bindLogin();
-    return;
-  }
-  // 已登入
-  dash.classList.remove('hidden');
-  login.classList.add('hidden');
-  // 綁定按鈕
-  const btnPlayer = document.getElementById('admin-manage-players');
-  if (btnPlayer) btnPlayer.onclick = showAdminPlayerList;
-  const btnSchedule = document.getElementById('admin-manage-schedule');
-  if (btnSchedule) btnSchedule.onclick = showAdminScheduleList;
-  const btnMatches = document.getElementById('admin-manage-matches');
-  if (btnMatches) btnMatches.onclick = showAdminMatchList;
-  const btnLeave = document.getElementById('admin-view-leave');
-  if (btnLeave) btnLeave.onclick = showAdminLeaveList;
-  const btnAnn = document.getElementById('admin-add-announcement');
-  if (btnAnn) btnAnn.onclick = renderAdminAnnouncementForm;
-  const btnSettings = document.getElementById('admin-settings');
-  if (btnSettings) btnSettings.onclick = showAdminSettings;
-}
-
-function bindLogin() {
-  const loginBtn = document.getElementById('admin-login-btn');
-  const errorP = document.getElementById('admin-login-error');
-  if (!loginBtn) return;
-  loginBtn.onclick = async () => {
-    const pwd = document.getElementById('admin-password').value.trim();
-    if (!pwd) {
-      if (errorP) errorP.classList.remove('hidden');
-      return;
-    }
-    loginBtn.textContent = '驗證中...';
-    loginBtn.disabled = true;
-    try {
-      const res = await fetch(GAS_API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'check_auth', password: pwd })
-      });
-      const result = await res.json();
-      if (result.success) {
-        adminLoggedIn = true;
-        // 保存密碼於輸入框供後續操作
-        document.getElementById('admin-password').value = pwd;
-        renderAdmin();
-        showToast('登入成功');
-      } else {
-        if (errorP) {
-          errorP.textContent = '密碼錯誤';
-          errorP.classList.remove('hidden');
-        }
-      }
-    } catch (e) {
-      showToast('連線錯誤');
-    } finally {
-      loginBtn.textContent = '登入';
-      loginBtn.disabled = false;
-    }
-  };
-}
-
-// === 管理：公告 ===
-function renderAdminAnnouncementForm() {
-  const content = document.getElementById('admin-content');
-  if (!content) return;
-  content.innerHTML = `
-    <div class="admin-form-card">
-      <h3 style="margin-top:0; color:var(--primary-color);">發布新公告</h3>
-      <form id="admin-ann-form">
-        <div class="admin-form-group"><label>公告標題</label><input type="text" id="new-ann-title" class="admin-input" required></div>
-        <div class="admin-form-group"><label>發布日期</label><input type="date" id="new-ann-date" class="admin-input" required></div>
-        <div class="admin-form-group"><label>公告內容</label><textarea id="new-ann-content" class="admin-textarea" rows="6" required></textarea></div>
-        <button type="submit" class="hero-btn" style="width:100%;">確認發布</button>
-      </form>
-    </div>
-  `;
-  document.getElementById('new-ann-date').value = formatDate(new Date());
-  const form = document.getElementById('admin-ann-form');
-  form.onsubmit = async e => {
-    e.preventDefault();
-    const title = document.getElementById('new-ann-title').value.trim();
-    const date = document.getElementById('new-ann-date').value;
-    const contentText = document.getElementById('new-ann-content').value.trim();
-    if (!title || !date || !contentText) return;
-    await sendToGasWithAuth('add_announcement', { title, date, content: contentText });
-    form.reset();
-    document.getElementById('new-ann-date').value = formatDate(new Date());
-  };
-}
-
-// === 管理：球員名冊 ===
-function showAdminPlayerList() {
-  const content = document.getElementById('admin-content');
-  content.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
-      <h4 style="margin:0; color:var(--primary-color);">球員名冊管理</h4>
-      <button id="btn-add-player" class="hero-btn" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增球員</button>
-    </div>
-    <div class="admin-form-group" style="margin-bottom:15px;">
-      <input type="text" id="player-search" class="admin-input" placeholder="搜尋姓名、班級、膠皮..." onkeyup="filterAdminPlayerList()">
-    </div>
-    <div id="admin-player-list"></div>
-  `;
-  document.getElementById('btn-add-player').onclick = () => renderAdminPlayerForm();
-  filterAdminPlayerList();
-}
-
-function filterAdminPlayerList() {
-  const keyword = (document.getElementById('player-search')?.value || '').toLowerCase();
-  const listContainer = document.getElementById('admin-player-list');
-  if (!listContainer) return;
-  listContainer.innerHTML = '';
-  // 排序：年級(小→大) > 班級
-  const sorted = players.slice().sort((a, b) => {
-    const gDiff = (Number(a.grade) || 99) - (Number(b.grade) || 99);
-    if (gDiff !== 0) return gDiff;
-    return (a.class || '').localeCompare(b.class || '', 'zh-Hant');
-  });
-  const filtered = sorted.filter(p => {
-    return !keyword || (p.name && p.name.includes(keyword)) || (p.class && p.class.includes(keyword)) || (p.paddle && p.paddle.includes(keyword));
-  });
-  if (filtered.length === 0) {
-    listContainer.innerHTML = '<div style="text-align:center; color:#888;">無符合資料</div>';
-    return;
-  }
-  filtered.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'player-card';
-    const gradeClass = `${p.grade ? p.grade + '年' : ''} ${p.class ? p.class + '班' : ''}`.trim() || '未填';
-    card.innerHTML = `
-      <div class="player-header" onclick="this.parentElement.classList.toggle('expanded')">
-        <div class="player-info-main">
-          <span class="player-name">${escapeHtml(p.name)}</span>
-          <span class="player-class">${escapeHtml(gradeClass)}</span>
-        </div>
-        <i class="fas fa-chevron-down toggle-icon"></i>
-      </div>
-      <div class="player-details">
-        <div class="detail-grid">
-          <div><span class="detail-label">暱稱:</span> ${escapeHtml(p.nickname || '-')}</div>
-          <div><span class="detail-label">性別:</span> ${escapeHtml(p.gender || '-')}</div>
-          <div><span class="detail-label">膠皮:</span> ${escapeHtml(p.paddle || '-')}</div>
-          <div><span class="detail-label">持拍:</span> ${escapeHtml(p.hand || '-')}</div>
-          <div><span class="detail-label">打法:</span> ${escapeHtml(p.style || '-')}</div>
-          <div style="grid-column:1/-1"><span class="detail-label">狀態:</span> <span style="color:${p.isActive==='FALSE'?'red':'green'}">${p.isActive==='FALSE'?'離隊':'在隊'}</span></div>
-        </div>
-        <div class="leave-item-actions" style="margin-top:10px;">
-          <button class="action-btn edit"><i class="fas fa-edit"></i> 編輯</button>
-          <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
-        </div>
-      </div>
-    `;
-    card.querySelector('.edit').onclick = e => {
-      e.stopPropagation();
-      renderAdminPlayerForm(p);
-    };
-    card.querySelector('.delete').onclick = e => {
-      e.stopPropagation();
-      confirmDel('delete_player', p.rowId, p.name);
-    };
-    listContainer.appendChild(card);
-  });
-}
-
-function renderAdminPlayerForm(player = null) {
-  const content = document.getElementById('admin-content');
-  const isEdit = !!player;
-  const p = player || {};
-  const paddles = ['平面','短顆','中顆','長顆','Anti','不詳'];
-  const styles = ['刀板','直板','日直','削球'];
-  const grades = [6,5,4,3,2,1];
-  content.innerHTML = `
-    <div class="admin-form-card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h3 style="margin:0; color:var(--primary-color);">${isEdit ? '編輯球員' : '新增球員'}</h3>
-        <button class="action-btn" onclick="showAdminPlayerList()" style="background:#eee; padding:5px 10px;">取消</button>
-      </div>
-      <form id="player-form">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="admin-form-group"><label>姓名 *</label><input type="text" id="p-name" class="admin-input" value="${escapeHtml(p.name||'')}" required></div>
-          <div class="admin-form-group"><label>暱稱</label><input type="text" id="p-nick" class="admin-input" value="${escapeHtml(p.nickname||'')}" placeholder="選填"></div>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="admin-form-group"><label>年級</label><select id="p-grade" class="admin-select"><option value="">選擇</option>${grades.map(g => `<option value="${g}" ${p.grade==g?'selected':''}>${g}</option>`).join('')}</select></div>
-          <div class="admin-form-group"><label>班級</label><input type="text" id="p-class" class="admin-input" value="${escapeHtml(p.class||'')}" placeholder="601"></div>
-          <div class="admin-form-group"><label>性別</label><select id="p-gender" class="admin-select"><option value="男" ${p.gender==='男'?'selected':''}>男</option><option value="女" ${p.gender==='女'?'selected':''}>女</option></select></div>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="admin-form-group"><label>膠皮</label><select id="p-paddle" class="admin-select"><option value="">請選擇</option>${paddles.map(pd => `<option value="${pd}" ${p.paddle===pd?'selected':''}>${pd}</option>`).join('')}</select></div>
-          <div class="admin-form-group"><label>持拍</label><select id="p-hand" class="admin-select"><option value="右手" ${p.hand==='右手'?'selected':''}>右手</option><option value="左手" ${p.hand==='左手'?'selected':''}>左手</option></select></div>
-        </div>
-        <div class="admin-form-group"><label>打法 (可複選)</label><div style="display:flex; gap:10px; flex-wrap:wrap; padding:10px; background:#f9f9f9; border-radius:8px;">${styles.map(s => `<label style="display:flex; align-items:center; gap:5px; font-weight:normal; cursor:pointer; font-size:0.9rem;"><input type="checkbox" name="p-style" value="${s}" ${(p.style||'').includes(s)?'checked':''}>${s}</label>`).join('')}</div></div>
-        <div class="admin-form-group"><label>狀態</label><select id="p-active" class="admin-select"><option value="TRUE" ${p.isActive!=='FALSE'?'selected':''}>在隊</option><option value="FALSE" ${p.isActive==='FALSE'?'selected':''}>離隊</option></select></div>
-        <button type="submit" class="hero-btn" style="width:100%; margin-top:10px;">儲存</button>
-      </form>
-    </div>
-  `;
-  document.getElementById('player-form').onsubmit = e => {
-    e.preventDefault();
-    const styleArr = Array.from(document.querySelectorAll('input[name="p-style"]:checked')).map(cb => cb.value);
-    const payload = {
-      rowId: p.rowId || null,
-      name: document.getElementById('p-name').value.trim(),
-      nickname: document.getElementById('p-nick').value.trim(),
-      grade: document.getElementById('p-grade').value,
-      class: document.getElementById('p-class').value.trim(),
-      gender: document.getElementById('p-gender').value,
-      paddle: document.getElementById('p-paddle').value,
-      hand: document.getElementById('p-hand').value,
-      style: styleArr.join('/'),
-      photo: '',
-      isActive: document.getElementById('p-active').value
-    };
-    if (!payload.name) { showToast('請輸入姓名'); return; }
-    sendToGasWithAuth('save_player', payload);
-  };
-}
-
-// === 管理：排程 ===
-function showAdminScheduleList() {
-  const content = document.getElementById('admin-content');
-  content.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
-      <h4 style="margin:0; color:var(--primary-color);">排程管理 (每週固定)</h4>
-      <button class="hero-btn" onclick="renderAdminScheduleForm()" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增</button>
-    </div>
-    <div id="admin-schedule-list" class="leave-list-container"></div>
-  `;
-  const flatList = [];
-  weekdays.forEach(d => {
-    defaultSlots.forEach(s => {
-      const arr = (schedule[d] && schedule[d][s]) ? schedule[d][s] : [];
-      arr.forEach(item => flatList.push({ ...item, day: d, slot: s }));
-    });
-  });
-  const listDiv = document.getElementById('admin-schedule-list');
-  if (flatList.length === 0) {
-    listDiv.innerHTML = '<div style="text-align:center;">目前無排程</div>';
-    return;
-  }
-  flatList.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'leave-item';
-    card.innerHTML = `
-      <div class="leave-item-header">
-        <div class="leave-item-name">${escapeHtml(item.day)} <span style="font-size:0.9rem; font-weight:normal;">${escapeHtml(item.slot)}</span></div>
-        <div class="leave-item-date">T${escapeHtml(item.table)}</div>
-      </div>
-      <div class="leave-item-reason">
-        教練: ${escapeHtml(item.coach?.name || '-')}
-        <br>選手: ${escapeHtml(item.playerA?.name || '-')}
-        ${item.playerB && item.playerB.name ? ' vs ' + escapeHtml(item.playerB.name) : ''}
-      </div>
-      <div class="leave-item-actions">
-        <button class="action-btn edit">編輯</button>
-        <button class="action-btn delete">刪除</button>
-      </div>
-    `;
-    card.querySelector('.edit').onclick = () => renderAdminScheduleForm(item);
-    card.querySelector('.delete').onclick = () => confirmDel('delete_schedule', item.rowId, '此排程');
-    listDiv.appendChild(card);
-  });
-}
-
-function renderAdminScheduleForm(item = null) {
-  const isEdit = !!item;
-  const s = item || {};
-  const content = document.getElementById('admin-content');
-  const coachOpts = staff.map(c => `<option value="${c.id}" ${s.coach && s.coach.id===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
-  const playerOpts = players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
-  content.innerHTML = `
-    <div class="admin-form-card">
-      <h3>${isEdit ? '編輯排程' : '新增排程'}</h3>
-      <form id="schedule-form">
-        <div class="admin-form-group"><label>星期</label><select id="s-day" class="admin-select">${weekdays.map(d => `<option value="${d}" ${s.day===d?'selected':''}>${d}</option>`).join('')}</select></div>
-        <div class="admin-form-group"><label>時段</label><select id="s-slot" class="admin-select">${defaultSlots.map(t => `<option value="${t}" ${s.slot===t?'selected':''}>${t}</option>`).join('')}</select></div>
-        <div class="admin-form-group"><label>桌次</label><input type="text" id="s-table" class="admin-input" value="${escapeHtml(s.table||'')}" required></div>
-        <div class="admin-form-group"><label>教練</label><select id="s-coach" class="admin-select"><option value="">選擇教練</option>${coachOpts}</select></div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="admin-form-group"><label>選手A</label><select id="s-pa" class="admin-select"><option value="">選擇選手</option>${playerOpts}</select></div>
-          <div class="admin-form-group"><label>選手B</label><select id="s-pb" class="admin-select"><option value="">選擇選手</option>${playerOpts}</select></div>
-        </div>
-        <div class="admin-form-group"><label>備註</label><input type="text" id="s-note" class="admin-input" value="${escapeHtml(s.remark||'')}"></div>
-        <div style="display:flex; gap:10px;">
-          <button type="submit" class="hero-btn" style="flex:1;">儲存</button>
-          <button type="button" class="action-btn" style="background:#eee; padding:10px;" onclick="showAdminScheduleList()">取消</button>
-        </div>
-      </form>
-    </div>
-  `;
-  // 選擇值
-  if (isEdit) {
-    // Set selected values for players by id
-    if (s.playerA && s.playerA.id) document.getElementById('s-pa').value = s.playerA.id;
-    if (s.playerB && s.playerB.id) document.getElementById('s-pb').value = s.playerB.id;
-  }
-  document.getElementById('schedule-form').onsubmit = e => {
-    e.preventDefault();
-    const payload = {
-      rowId: s.rowId,
-      weekday: document.getElementById('s-day').value,
-      slot: document.getElementById('s-slot').value,
-      table: document.getElementById('s-table').value,
-      coachId: document.getElementById('s-coach').value,
-      playerAId: document.getElementById('s-pa').value,
-      playerBId: document.getElementById('s-pb').value,
-      note: document.getElementById('s-note').value
-    };
-    sendToGasWithAuth('save_schedule', payload);
-  };
-}
-
-// === 管理：比賽紀錄 ===
-function showAdminMatchList() {
-  const content = document.getElementById('admin-content');
-  content.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">
-      <h4 style="margin:0; color:var(--primary-color);">比賽紀錄</h4>
-      <button class="hero-btn" onclick="renderAdminMatchForm()" style="padding:5px 12px; font-size:0.9rem;"><i class="fas fa-plus"></i> 新增</button>
-    </div>
-    <div id="admin-match-list" class="leave-list-container"></div>
-  `;
-  const list = document.getElementById('admin-match-list');
-  if (!matches || matches.length === 0) {
-    list.innerHTML = '<div style="text-align:center;">無紀錄</div>';
-    return;
-  }
-  matches.forEach(m => {
-    const card = document.createElement('div');
-    card.className = 'leave-item';
-    const playerNames = m.players.map(id => (players.find(p => p.id === id) || {}).name || id).join('、');
-    const opponentNames = m.opponents.join('、');
-    card.innerHTML = `
-      <div class="leave-item-header">
-        <div class="leave-item-name">${escapeHtml(playerNames)} vs ${escapeHtml(opponentNames)}</div>
-        <div class="leave-item-date">${escapeHtml(m.date)}</div>
-      </div>
-      <div class="leave-item-reason">
-        <span class="match-type-badge">${m.type==='singles'?'單打':'雙打'}</span>
-        總分: <b>${escapeHtml(m.score)}</b>${m.sets ? ` (局分: ${escapeHtml(m.sets)})` : ''}
-        ${m.eventName ? `<br><span style="color:#888; font-size:0.9rem;">賽事：${escapeHtml(m.eventName)}</span>` : ''}
-      </div>
-      <div class="leave-item-actions">
-        <button class="action-btn edit">編輯</button>
-        <button class="action-btn delete">刪除</button>
-      </div>
-    `;
-    card.querySelector('.edit').onclick = () => renderAdminMatchForm(m);
-    card.querySelector('.delete').onclick = () => confirmDel('delete_match', m.rowId, '此紀錄');
-    list.appendChild(card);
-  });
-}
-
-function renderAdminMatchForm(item = null) {
-  const isEdit = !!item;
-  const m = item || {};
-  const content = document.getElementById('admin-content');
-  const playerOpts = players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
-  content.innerHTML = `
-    <div class="admin-form-card">
-      <h3>${isEdit ? '編輯比賽紀錄' : '新增比賽紀錄'}</h3>
-      <form id="match-form">
-        <div class="admin-form-group"><label>日期</label><input type="date" id="m-date" class="admin-input" required value="${escapeHtml(isEdit ? m.date : formatDate(new Date()))}"></div>
-        <div class="admin-form-group"><label>賽事名稱</label><input type="text" id="m-event" class="admin-input" value="${escapeHtml(m.eventName || '')}" placeholder="例如 校際盃"></div>
-        <div class="admin-form-group"><label>賽制</label><select id="m-type" class="admin-select" onchange="toggleMatchType(this.value)"><option value="singles" ${m.type!=='doubles'?'selected':''}>單打</option><option value="doubles" ${m.type==='doubles'?'selected':''}>雙打</option></select></div>
-        <div style="display:grid; grid-template-columns:1fr 0.2fr 1fr; gap:5px; align-items:center;">
-          <div id="team-a"></div><div>vs</div><div id="team-b"></div>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
-          <div class="admin-form-group"><label>總比分 (ex: 3:1)</label><input type="text" id="m-score" class="admin-input" placeholder="3:1" required value="${escapeHtml(m.score || '')}"></div>
-          <div class="admin-form-group"><label>局分 (ex: 11-9,8-11)</label><input type="text" id="m-sets" class="admin-input" placeholder="各局比分" value="${escapeHtml(m.sets || '')}"></div>
-        </div>
-        <div class="admin-form-group"><label>影片連結</label><input type="text" id="m-video" class="admin-input" value="${escapeHtml((m.video||{}).url || '')}"></div>
-        <div class="admin-form-group"><label>備註</label><input type="text" id="m-note" class="admin-input" value="${escapeHtml(m.notes || '')}"></div>
-        <div style="display:flex; gap:10px;">
-          <button type="submit" class="hero-btn" style="flex:1;">儲存</button>
-          <button type="button" class="action-btn" style="background:#eee; padding:10px;" onclick="showAdminMatchList()">取消</button>
-        </div>
-      </form>
-    </div>
-  `;
-  // 生成選手與對手輸入欄
-  window.toggleMatchType = function(type) {
-    const teamA = document.getElementById('team-a');
-    const teamB = document.getElementById('team-b');
-    const selectA = (id, val) => `<select id="${id}" class="admin-select" style="margin-bottom:5px;"><option value="">選擇選手</option>${playerOpts}</select>`;
-    const inputOpp = (id, val) => `<input type="text" id="${id}" class="admin-input" placeholder="輸入對手姓名" value="${escapeHtml(val||'')}" style="margin-bottom:5px;">`;
-    if (type === 'doubles') {
-      teamA.innerHTML = selectA('m-p1') + selectA('m-p2');
-      teamB.innerHTML = inputOpp('m-o1', m.opponents && m.opponents[0]) + inputOpp('m-o2', m.opponents && m.opponents[1]);
-    } else {
-      teamA.innerHTML = selectA('m-p1');
-      teamB.innerHTML = inputOpp('m-o1', m.opponents && m.opponents[0]);
-    }
-    // 若有舊資料，選擇玩家
-    if (isEdit) {
-      if (m.players && m.players[0]) document.getElementById('m-p1').value = m.players[0] || '';
-      if (m.players && m.players[1] && document.getElementById('m-p2')) document.getElementById('m-p2').value = m.players[1] || '';
-    }
-  };
-  window.toggleMatchType(document.getElementById('m-type').value);
-  document.getElementById('match-form').onsubmit = e => {
-    e.preventDefault();
-    const type = document.getElementById('m-type').value;
-    const payload = {
-      rowId: m.rowId,
-      date: document.getElementById('m-date').value,
-      eventName: document.getElementById('m-event').value.trim(),
-      type: type,
-      p1: document.getElementById('m-p1').value,
-      p2: type==='doubles' ? (document.getElementById('m-p2') ? document.getElementById('m-p2').value : '') : '',
-      o1: document.getElementById('m-o1').value.trim(),
-      o2: type==='doubles' ? (document.getElementById('m-o2') ? document.getElementById('m-o2').value.trim() : '') : '',
-      score: document.getElementById('m-score').value.trim(),
-      sets: document.getElementById('m-sets').value.trim(),
-      video: document.getElementById('m-video').value.trim(),
-      notes: document.getElementById('m-note').value.trim()
-    };
-    sendToGasWithAuth('save_match', payload);
-  };
-}
-
-// === 管理：請假管理 ===
-function showAdminLeaveList() {
-  const content = document.getElementById('admin-content');
-  content.innerHTML = `
-    <h4 style="margin-bottom:15px; color:var(--primary-color); border-bottom:2px solid #eee; padding-bottom:10px;">全部請假紀錄</h4>
-    <div id="admin-leave-list" class="leave-list-container"></div>
-  `;
-  const listContainer = document.getElementById('admin-leave-list');
-  if (!leaveRequests || leaveRequests.length === 0) {
-    listContainer.innerHTML = '<div class="card" style="text-align:center; color:#888; padding:20px;">目前尚無請假紀錄</div>';
-    return;
-  }
-  leaveRequests.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'leave-item';
-    card.innerHTML = `
-      <div class="leave-item-header">
-        <div class="leave-item-name">${escapeHtml(item.name)}</div>
-        <div class="leave-item-date">${escapeHtml(item.date)}<br><span style="font-size:0.8em; opacity:0.8;">${escapeHtml(item.slot)}</span></div>
-      </div>
-      <div class="leave-item-reason">${escapeHtml(item.reason)}</div>
-      <div class="leave-item-actions">
-        <button class="action-btn edit"><i class="fas fa-edit"></i> 編輯</button>
-        <button class="action-btn delete"><i class="fas fa-trash-alt"></i> 刪除</button>
-      </div>
-    `;
-    card.querySelector('.edit').onclick = () => renderAdminLeaveForm(item);
-    card.querySelector('.delete').onclick = () => confirmDel('delete_leave', item.rowId, item.name);
-    listContainer.appendChild(card);
-  });
-}
-
-function renderAdminLeaveForm(item) {
-  const content = document.getElementById('admin-content');
-  const s = item || {};
-  content.innerHTML = `
-    <div class="admin-form-card">
-      <h3>${s.rowId ? '編輯請假' : '新增請假'}</h3>
-      <form id="leave-form-admin">
-        <div class="admin-form-group"><label>姓名</label><input type="text" id="l-name" class="admin-input" value="${escapeHtml(s.name||'')}" required></div>
-        <div class="admin-form-group"><label>日期</label><input type="date" id="l-date" class="admin-input" value="${escapeHtml(s.date||formatDate(new Date()))}" required></div>
-        <div class="admin-form-group"><label>時段</label><select id="l-slot" class="admin-select">${defaultSlots.map(t => `<option value="${t}" ${s.slot===t?'selected':''}>${t}</option>`).join('')}</select></div>
-        <div class="admin-form-group"><label>原因</label><textarea id="l-reason" class="admin-textarea" rows="4">${escapeHtml(s.reason||'')}</textarea></div>
-        <div style="display:flex; gap:10px;">
-          <button type="submit" class="hero-btn" style="flex:1;">儲存</button>
-          <button type="button" class="action-btn" style="background:#eee; padding:10px;" onclick="showAdminLeaveList()">取消</button>
-        </div>
-      </form>
-    </div>
-  `;
-  document.getElementById('leave-form-admin').onsubmit = e => {
-    e.preventDefault();
-    const payload = {
-      rowId: s.rowId,
-      name: document.getElementById('l-name').value.trim(),
-      date: document.getElementById('l-date').value,
-      slot: document.getElementById('l-slot').value,
-      reason: document.getElementById('l-reason').value.trim()
-    };
-    if (s.rowId) {
-      sendToGasWithAuth('update_leave', payload);
-    } else {
-      sendToGasWithAuth('add_leave', payload);
-    }
-  };
-}
-
-// === 管理：設定 ===
-function showAdminSettings() {
-  const content = document.getElementById('admin-content');
-  const currentBg = (heroConfig && heroConfig.hero_bg_url) || '';
-  content.innerHTML = `
-    <div class="admin-form-card">
-      <h3 style="margin-top:0; color:var(--primary-color);">網站外觀設定</h3>
-      <div class="admin-form-group"><label>Hero Banner 圖片連結</label><input type="text" id="conf-hero-bg" class="admin-input" value="${escapeHtml(currentBg)}" placeholder="請輸入圖片 URL"></div>
-      <small style="color:#666; display:block; margin-bottom:15px;">建議使用橫式高畫質圖片 (1920x1080)</small>
-      <button id="btn-save-config" class="hero-btn" style="width:100%;">儲存設定</button>
-    </div>
-  `;
-  document.getElementById('btn-save-config').onclick = () => {
-    const url = document.getElementById('conf-hero-bg').value.trim();
-    sendToGasWithAuth('update_config', { hero_bg_url: url });
-  };
-}
-
-// === 入口初始化 ===
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadAllData();
-  initNavigation();
-  // 綁定主動元素
-  const scheduleSearch = document.getElementById('schedule-search');
-  if (scheduleSearch) scheduleSearch.oninput = () => renderSchedule();
-  const rosterSearch = document.getElementById('roster-search');
-  if (rosterSearch) rosterSearch.oninput = () => renderRoster();
-  // 初始路由
-  const hash = location.hash ? location.hash.replace('#','') : 'home';
-  navigateTo(hash, false);
 });
