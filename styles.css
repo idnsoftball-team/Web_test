@@ -1,5 +1,5 @@
-/* styles.css - v23.0 Final Polish (No Bullets & Fixed Login) */
-:root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --bg-color:#f4f7f6; --text-main:#2c3e50; }
+/* styles.css - v24.0 (UI Polish: Schedule, Matches, Leave, Login) */
+:root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --success-color:#27ae60; --bg-color:#f4f7f6; --text-main:#2c3e50; }
 * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family:'Roboto',sans-serif; background:var(--bg-color); color:var(--text-main); padding-bottom:90px; }
 .bg-mesh { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-1; background:radial-gradient(circle at 10% 20%, rgba(0,84,166,0.03) 0%, transparent 40%); pointer-events:none; }
@@ -9,15 +9,11 @@ header { position:fixed; top:0; left:0; width:100%; height:60px; background:line
 .header-left { display:flex; align-items:center; gap:8px; }
 header h1 { font-size:1.25rem; font-weight:900; margin:0; }
 #menu-toggle, #back-button { background:none; border:none; color:white; font-size:1.4rem; padding:5px; }
-
-/* ★★★ 修正：去除側邊欄黑點 ★★★ */
 nav#sidebar { position:fixed; top:0; left:0; bottom:0; width:260px; background:white; z-index:3000; transform:translateX(-100%); transition:0.3s; padding-top:80px; box-shadow:2px 0 20px rgba(0,0,0,0.1); }
-nav#sidebar ul { list-style: none; padding: 0; margin: 0; } /* 去除項目符號 */
-nav#sidebar li { margin: 0; padding: 0; } 
+nav#sidebar ul { list-style: none; padding:0; margin:0; }
 body.sidebar-open nav#sidebar { transform:translateX(0); }
 nav#sidebar a { display:flex; align-items:center; gap:15px; padding:14px 20px; color:#444; text-decoration:none; margin-bottom:8px; border-radius:0 12px 12px 0; font-weight:500; }
-nav#sidebar a.active { background:var(--primary-color); color:white; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
-
+nav#sidebar a.active { background:var(--primary-color); color:white; box-shadow:2px 2px 5px rgba(0,0,0,0.1); }
 #overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; opacity:0; pointer-events:none; transition:0.3s; }
 body.sidebar-open #overlay, body.modal-open #overlay { opacity:1; pointer-events:auto; }
 main { margin-top:60px; padding:16px; min-height:80vh; }
@@ -33,39 +29,69 @@ main { margin-top:60px; padding:16px; min-height:80vh; }
 @media(min-width:600px){ .card-container { grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); } }
 .card { background:white; border-radius:12px; padding:15px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
 
-/* Matches */
+/* ★★★ Match Records (Expandable) ★★★ */
 .multi-filter-bar { background:white; padding:15px; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.05); margin-bottom:20px; display:flex; flex-direction:column; gap:12px; border:1px solid #eee; }
 .filter-row { display:flex; align-items:center; gap:15px; flex-wrap:wrap; }
 .filter-search-input { width:100%; padding:12px 20px; border:1px solid #e0e0e0; border-radius:50px; font-size:1rem; background:#f8f9fa; }
 .filter-checkbox-label { display:flex; align-items:center; gap:8px; background:#f0f2f5; padding:8px 16px; border-radius:20px; cursor:pointer; font-size:0.9rem; }
 section#matches h2 { color:var(--primary-dark); font-size:1.5rem; margin-bottom:15px; display:flex; align-items:center; gap:10px; }
 section#matches h2::before { content:''; display:block; width:6px; height:24px; background:var(--accent-gold); border-radius:4px; }
-.match-card-score { background:white; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.08); margin-bottom:16px; overflow:hidden; }
-.match-score-header { background:#f1f3f5; padding:8px 15px; display:flex; justify-content:space-between; font-size:0.85rem; font-weight:bold; color:#666; }
-.match-score-body { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; }
-.match-players-container { display:flex; flex-direction:column; gap:8px; }
-.side-names { font-size:1.1rem; font-weight:700; color:#333; }
-.match-score-box { background:var(--primary-dark); color:var(--accent-gold); font-family:sans-serif; font-weight:900; font-size:1.8rem; padding:10px 15px; border-radius:12px; min-width:80px; text-align:center; }
 
-/* Leave & Roster */
-.leave-card-new { background:white; border-radius:16px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.06); display:flex; flex-direction:column; gap:8px; border-left:6px solid var(--danger-color); margin-bottom:10px; }
-.leave-name-large { font-size:1.2rem; font-weight:700; }
-.leave-tags-row { display:flex; gap:8px; }
-.tag-date { background:#e3f2fd; color:#1976d2; padding:4px 10px; border-radius:6px; font-size:0.9rem; font-weight:bold; }
-.tag-time { background:#fff3e0; color:#e65100; padding:4px 10px; border-radius:6px; font-size:0.9rem; font-weight:bold; }
-.leave-reason-box { background:#f9f9f9; padding:10px; border-radius:8px; color:#555; font-size:0.9rem; }
+.match-card-score { background:white; border-radius:16px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:12px; overflow:hidden; transition: all 0.3s ease; border: 1px solid transparent; cursor: pointer; }
+.match-card-score.expanded { border-color: var(--primary-color); box-shadow: 0 4px 15px rgba(0,0,0,0.15); transform: translateY(-2px); }
+.match-score-header { background:#f8f9fa; padding:10px 15px; display:flex; justify-content:space-between; font-size:0.85rem; font-weight:bold; color:#666; border-bottom: 1px solid #eee; }
+.match-score-body { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; }
+.match-players-container { display:flex; flex-direction:column; gap:6px; }
+.side-names { font-size:1.1rem; font-weight:700; color:#333; }
+.match-score-box { background:var(--primary-dark); color:var(--accent-gold); font-family:sans-serif; font-weight:900; font-size:1.6rem; padding:8px 12px; border-radius:10px; min-width:70px; text-align:center; }
+/* 隱藏的詳細資訊 */
+.match-details-panel { display: none; padding: 15px; background: #f0f4f8; border-top: 1px dashed #ddd; font-size: 0.9rem; color: #555; animation: slideDown 0.3s ease; }
+.match-card-score.expanded .match-details-panel { display: block; }
+@keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+
+/* ★★★ Leave Requests (Redesigned) ★★★ */
+.leave-controls { display: flex; justify-content: flex-end; margin-bottom: 15px; }
+.btn-filter-today { background: white; border: 1px solid var(--primary-color); color: var(--primary-color); padding: 6px 15px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
+.btn-filter-today.active { background: var(--primary-color); color: white; }
+
+.leave-card-new { background:white; border-radius:12px; padding:15px; box-shadow:0 2px 6px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:10px; border-left:5px solid var(--primary-color); margin-bottom:12px; position: relative; }
+.leave-card-new.is-today { border-left-color: var(--accent-gold); background: #fffdf5; } /* 今日特別色 */
+.leave-header-row { display: flex; justify-content: space-between; align-items: center; }
+.leave-name-large { font-size:1.1rem; font-weight:700; color: #333; }
+.leave-meta-row { display: flex; gap: 10px; font-size: 0.85rem; color: #666; align-items: center; }
+.meta-tag { display: flex; align-items: center; gap: 4px; background: #f0f2f5; padding: 4px 8px; border-radius: 6px; }
+.leave-reason-box { background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px; font-size: 0.9rem; color: #444; line-height: 1.4; }
+
+/* ★★★ Schedule (Compact 3-Line) ★★★ */
+.accordion-header { background:white; padding:12px 15px; border-radius:10px; margin-bottom:6px; font-weight:bold; color:var(--primary-dark); display:flex; justify-content:space-between; border-left:4px solid var(--accent-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.accordion-content { display:none; padding:5px 0; }
+.accordion-content.show { display:block; }
+.compact-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+.compact-card { background:rgba(255,255,255,0.9); border:1px solid #e0e0e0; border-radius:8px; padding:6px; text-align:center; font-size:0.85rem; display: flex; flex-direction: column; gap: 2px; }
+.schedule-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 2px; margin-bottom: 2px; }
+.table-badge { background:#eee; color:#666; font-size:0.7rem; padding:1px 5px; border-radius:4px; font-weight: bold; }
+.coach-name { color: var(--primary-color); font-weight: 900; font-size: 0.85rem; }
+.player-name { color: #333; font-size: 0.9rem; line-height: 1.2; }
+
+/* ★★★ Admin Login (Fix Visibility) ★★★ */
+#admin-login { max-width:400px; margin:5vh auto; text-align:center; padding:30px; display: flex; flex-direction: column; gap: 15px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.admin-input { width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; font-size: 1rem; background: #fff; color: #333; }
+.admin-textarea { width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; min-height:80px; font-size: 1rem; }
+/* 強制按鈕樣式 */
+.admin-btn-login { 
+    width:100%; padding:12px; border-radius:8px; border:none; 
+    background: #0054a6 !important; /* 強制藍色 */
+    color: white !important; 
+    font-weight: bold; font-size: 1rem; cursor: pointer; 
+    box-shadow: 0 2px 5px rgba(0,84,166,0.3);
+}
+.admin-btn-login:active { transform: scale(0.98); opacity: 0.9; }
+
+/* Misc */
 .roster-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
 .roster-card-compact { background:white; border-radius:10px; padding:12px 5px; text-align:center; border-top:4px solid var(--primary-color); box-shadow:0 2px 5px rgba(0,0,0,0.05); }
 .roster-name { font-weight:bold; margin-bottom:4px; }
 .roster-info { font-size:0.8rem; color:#666; background:#eee; border-radius:4px; display:inline-block; padding:2px 6px; }
-
-/* ★★★ Admin Login Fix ★★★ */
-#admin-login { max-width:400px; margin:5vh auto; text-align:center; padding:30px; display: flex; flex-direction: column; gap: 15px; }
-.admin-input { width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size: 1rem; }
-.admin-textarea { width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; min-height:80px; font-size: 1rem; }
-.admin-btn-login { width:100%; padding:12px; border-radius:8px; background:var(--primary-gradient); color:white; border:none; font-weight: bold; font-size: 1rem; cursor: pointer; }
-.admin-btn-login:active { opacity: 0.9; transform: scale(0.98); }
-
 .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; width:90%; max-width:500px; padding:20px; border-radius:16px; z-index:4000; display:none; }
 .modal.active { display:block; }
 .btn-close-absolute { position:absolute; top:10px; right:10px; border:none; background:none; font-size:1.5rem; color:#999; }
@@ -81,11 +107,5 @@ section#media { background-color:#1a1a1a; min-height:100vh; margin:-16px; paddin
 .video-thumb { width:100%; height:100%; object-fit:cover; opacity:0.8; }
 .play-icon-overlay { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:3rem; color:rgba(255,255,255,0.8); }
 .video-info { padding:10px; }
-.accordion-header { background:white; padding:14px; border-radius:10px; margin-bottom:6px; font-weight:bold; color:var(--primary-dark); display:flex; justify-content:space-between; border-left:4px solid var(--accent-gold); }
-.accordion-content { display:none; padding:5px 0; }
-.accordion-content.show { display:block; }
-.compact-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
-.compact-card { background:rgba(255,255,255,0.8); border:1px solid #ddd; border-radius:8px; padding:8px; text-align:center; font-size:0.9rem; }
-.table-badge { background:var(--primary-color); color:white; font-size:0.75rem; padding:2px 6px; border-radius:4px; display:inline-block; }
 #back-to-top { position:fixed; bottom:90px; right:20px; width:50px; height:50px; background:var(--primary-color); color:white; border-radius:50%; box-shadow:0 4px 15px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; font-size:1.2rem; z-index:2000; opacity:0; pointer-events:none; transition:0.3s; }
 #back-to-top.show { opacity:1; pointer-events:auto; }
