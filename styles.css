@@ -1,5 +1,7 @@
-/* styles.css - v24.0 (UI Polish: Schedule, Matches, Leave, Login) */
-:root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --success-color:#27ae60; --bg-color:#f4f7f6; --text-main:#2c3e50; }
+/* styles.css - v24.0 (Admin Leave Style Fix) */
+/* ... (保留上面的 root, body, header, hero 等等，請直接複製下方的完整版) ... */
+
+:root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --bg-color:#f4f7f6; --text-main:#2c3e50; }
 * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family:'Roboto',sans-serif; background:var(--bg-color); color:var(--text-main); padding-bottom:90px; }
 .bg-mesh { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-1; background:radial-gradient(circle at 10% 20%, rgba(0,84,166,0.03) 0%, transparent 40%); pointer-events:none; }
@@ -29,14 +31,13 @@ main { margin-top:60px; padding:16px; min-height:80vh; }
 @media(min-width:600px){ .card-container { grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); } }
 .card { background:white; border-radius:12px; padding:15px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
 
-/* ★★★ Match Records (Expandable) ★★★ */
+/* Matches */
 .multi-filter-bar { background:white; padding:15px; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.05); margin-bottom:20px; display:flex; flex-direction:column; gap:12px; border:1px solid #eee; }
 .filter-row { display:flex; align-items:center; gap:15px; flex-wrap:wrap; }
 .filter-search-input { width:100%; padding:12px 20px; border:1px solid #e0e0e0; border-radius:50px; font-size:1rem; background:#f8f9fa; }
 .filter-checkbox-label { display:flex; align-items:center; gap:8px; background:#f0f2f5; padding:8px 16px; border-radius:20px; cursor:pointer; font-size:0.9rem; }
 section#matches h2 { color:var(--primary-dark); font-size:1.5rem; margin-bottom:15px; display:flex; align-items:center; gap:10px; }
 section#matches h2::before { content:''; display:block; width:6px; height:24px; background:var(--accent-gold); border-radius:4px; }
-
 .match-card-score { background:white; border-radius:16px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:12px; overflow:hidden; transition: all 0.3s ease; border: 1px solid transparent; cursor: pointer; }
 .match-card-score.expanded { border-color: var(--primary-color); box-shadow: 0 4px 15px rgba(0,0,0,0.15); transform: translateY(-2px); }
 .match-score-header { background:#f8f9fa; padding:10px 15px; display:flex; justify-content:space-between; font-size:0.85rem; font-weight:bold; color:#666; border-bottom: 1px solid #eee; }
@@ -44,25 +45,22 @@ section#matches h2::before { content:''; display:block; width:6px; height:24px; 
 .match-players-container { display:flex; flex-direction:column; gap:6px; }
 .side-names { font-size:1.1rem; font-weight:700; color:#333; }
 .match-score-box { background:var(--primary-dark); color:var(--accent-gold); font-family:sans-serif; font-weight:900; font-size:1.6rem; padding:8px 12px; border-radius:10px; min-width:70px; text-align:center; }
-/* 隱藏的詳細資訊 */
 .match-details-panel { display: none; padding: 15px; background: #f0f4f8; border-top: 1px dashed #ddd; font-size: 0.9rem; color: #555; animation: slideDown 0.3s ease; }
 .match-card-score.expanded .match-details-panel { display: block; }
 @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
 
-/* ★★★ Leave Requests (Redesigned) ★★★ */
-.leave-controls { display: flex; justify-content: flex-end; margin-bottom: 15px; }
+/* Leave & Roster */
 .btn-filter-today { background: white; border: 1px solid var(--primary-color); color: var(--primary-color); padding: 6px 15px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
 .btn-filter-today.active { background: var(--primary-color); color: white; }
-
 .leave-card-new { background:white; border-radius:12px; padding:15px; box-shadow:0 2px 6px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:10px; border-left:5px solid var(--primary-color); margin-bottom:12px; position: relative; }
-.leave-card-new.is-today { border-left-color: var(--accent-gold); background: #fffdf5; } /* 今日特別色 */
+.leave-card-new.is-today { border-left-color: var(--accent-gold); background: #fffdf5; }
 .leave-header-row { display: flex; justify-content: space-between; align-items: center; }
 .leave-name-large { font-size:1.1rem; font-weight:700; color: #333; }
 .leave-meta-row { display: flex; gap: 10px; font-size: 0.85rem; color: #666; align-items: center; }
 .meta-tag { display: flex; align-items: center; gap: 4px; background: #f0f2f5; padding: 4px 8px; border-radius: 6px; }
 .leave-reason-box { background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px; font-size: 0.9rem; color: #444; line-height: 1.4; }
 
-/* ★★★ Schedule (Compact 3-Line) ★★★ */
+/* Schedule */
 .accordion-header { background:white; padding:12px 15px; border-radius:10px; margin-bottom:6px; font-weight:bold; color:var(--primary-dark); display:flex; justify-content:space-between; border-left:4px solid var(--accent-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .accordion-content { display:none; padding:5px 0; }
 .accordion-content.show { display:block; }
@@ -73,21 +71,13 @@ section#matches h2::before { content:''; display:block; width:6px; height:24px; 
 .coach-name { color: var(--primary-color); font-weight: 900; font-size: 0.85rem; }
 .player-name { color: #333; font-size: 0.9rem; line-height: 1.2; }
 
-/* ★★★ Admin Login (Fix Visibility) ★★★ */
+/* Admin Login */
 #admin-login { max-width:400px; margin:5vh auto; text-align:center; padding:30px; display: flex; flex-direction: column; gap: 15px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .admin-input { width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; font-size: 1rem; background: #fff; color: #333; }
 .admin-textarea { width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; min-height:80px; font-size: 1rem; }
-/* 強制按鈕樣式 */
-.admin-btn-login { 
-    width:100%; padding:12px; border-radius:8px; border:none; 
-    background: #0054a6 !important; /* 強制藍色 */
-    color: white !important; 
-    font-weight: bold; font-size: 1rem; cursor: pointer; 
-    box-shadow: 0 2px 5px rgba(0,84,166,0.3);
-}
+.admin-btn-login { width:100%; padding:12px; border-radius:8px; border:none; background: #0054a6 !important; color: white !important; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 2px 5px rgba(0,84,166,0.3); }
 .admin-btn-login:active { transform: scale(0.98); opacity: 0.9; }
 
-/* Misc */
 .roster-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
 .roster-card-compact { background:white; border-radius:10px; padding:12px 5px; text-align:center; border-top:4px solid var(--primary-color); box-shadow:0 2px 5px rgba(0,0,0,0.05); }
 .roster-name { font-weight:bold; margin-bottom:4px; }
