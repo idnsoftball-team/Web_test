@@ -147,3 +147,88 @@ section#media { background-color: #1a1a1a; min-height: 100vh; margin: -16px; pad
 
 #back-to-top { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; background: var(--primary-color); color: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; z-index: 2000; opacity: 0; pointer-events: none; transition: all 0.3s; }
 #back-to-top.show { opacity: 1; pointer-events: auto; }
+/* === 補遺：比賽紀錄搜尋欄與篩選器美化 === */
+.multi-filter-bar {
+  background: white;
+  padding: 15px 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+/* 搜尋框美化 */
+.filter-search-input {
+  width: 100%;
+  padding: 12px 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 50px; /* 圓角膠囊狀 */
+  font-size: 1rem;
+  background-color: #f8f9fa;
+  transition: all 0.3s ease;
+  box-shadow: inner 0 2px 5px rgba(0,0,0,0.02);
+}
+
+.filter-search-input:focus {
+  background-color: #fff;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(0, 84, 166, 0.15);
+  outline: none;
+}
+
+/* 單打/雙打 核取方塊美化 */
+.filter-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  background: #f0f2f5;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.filter-checkbox-label:hover {
+  background: #e4e6e9;
+  transform: translateY(-1px);
+}
+
+.filter-checkbox-label input[type="checkbox"] {
+  accent-color: var(--primary-color);
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* 標題與容器微調 */
+section#matches h2 {
+  color: var(--primary-dark);
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+section#matches h2::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 24px;
+  background: var(--accent-gold);
+  border-radius: 4px;
+}
