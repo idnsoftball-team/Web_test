@@ -428,3 +428,1081 @@ main {
   border: none; border-radius: 8px;
   font-weight: bold; cursor: pointer;
 }
+
+/* ======================================================================
+   Added/Updated styles (Back-to-Top, Section Links, Training Accordion,
+   Compact Grid Cards, Roster Search) — inserted per latest spec
+   ====================================================================== */
+
+/* === 新增：置頂按鈕 (Back to Top) === */
+#back-to-top {
+  position: fixed;
+  bottom: 90px; /* 避開底部導覽列 */
+  right: 20px;
+  width: 45px;
+  height: 45px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  cursor: pointer;
+  z-index: 3500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s;
+}
+
+#back-to-top.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* === 優化：首頁區塊連結 === */
+.section-link-title {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color 0.2s;
+}
+.section-link-title:active { color: var(--primary-color); }
+.section-link-title i { font-size: 0.9rem; color: #999; }
+
+/* === 重構：訓練排程 (層級收折 & 微型卡片) === */
+
+/* 第一層：星期按鈕 */
+.accordion-header {
+  background: white;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  font-weight: 700;
+  color: var(--primary-dark);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  border-left: 5px solid var(--accent-gold);
+}
+
+.accordion-header.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* 內容容器 */
+.accordion-content {
+  display: none;
+  padding: 0 5px 10px 5px;
+  animation: slideDown 0.3s ease;
+}
+.accordion-content.show { display: block; }
+
+/* 第二層：時段標題 */
+.time-slot-header {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 15px 0 8px 5px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.time-slot-header::before {
+  content: ''; display: block; width: 6px; height: 6px; background: var(--primary-color); border-radius: 50%;
+}
+
+/* 第三層：微型卡片網格 (3列佈局) */
+.compact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 強制3欄 */
+  gap: 8px;
+}
+
+/* 修改處 1：微型卡片樣式調整 */
+.compact-card {
+  background: rgba(255, 255, 255, 0.95); /* 稍微調高不透明度，增加對比 */
+  border-radius: 8px;
+  padding: 8px 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* 修改：確保高度足夠容納兩行名字 */
+  min-height: 90px; 
+}
+
+
+.compact-card .table-badge {
+  background: var(--primary-color);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 4px;
+  align-self: center;
+  margin-bottom: 4px;
+}
+
+/* 修改處 2：教練名稱改為深色 (深橘色/赭色) 以利閱讀 */
+.compact-card .coach-name {
+  font-size: 0.75rem;
+  /* 原本是 var(--accent-gold) 太亮，改用深橘色 */
+  color: #d35400; 
+  font-weight: 800;
+  margin-bottom: 4px;
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  white-space: nowrap;
+}
+
+
+/* 修改處 3：學員名單確保雙人顯示 */
+.compact-card .players {
+  font-size: 0.8rem; /* 字體微調大一點 */
+  color: #2c3e50;    /* 深灰藍色，增加閱讀性 */
+  font-weight: 500;
+  line-height: 1.3;  /* 行距 */
+  /* 確保可以顯示兩行 */
+  display: block;    
+  word-break: break-all; /* 防止長名字撐開 */
+}
+
+
+/* 名冊搜尋框 */
+.roster-search-bar {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: white;
+  box-shadow: var(--glass-shadow);
+  margin-bottom: 15px;
+  font-size: 1rem;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === 優化：比賽紀錄卡片 (緊湊版) === */
+.match-card {
+  /* 繼承基本卡片樣式，但覆蓋間距 */
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-amount));
+  border: var(--glass-border);
+  border-radius: 12px; /* 稍微縮小圓角 */
+  box-shadow: var(--glass-shadow);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+
+  /* 關鍵優化：高度縮緊 */
+  padding: 12px 16px; /* 縮小內距 */
+  margin-bottom: 8px; /* 縮小卡片間距 */
+  min-height: auto;   /* 移除最小高度限制 */
+  
+  /* 佈局：讓資訊橫向排列以節省垂直空間 */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 標題列 (類型與日期) */
+.match-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.match-type-badge {
+  background: var(--primary-color);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* 對戰組合 (核心資訊) */
+.match-card-vs {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-card-vs i {
+  color: #ccc;
+  font-size: 0.8rem;
+}
+
+/* 比分 */
+.match-card-score {
+  font-size: 0.9rem;
+  color: var(--primary-dark);
+  font-family: 'Roboto', sans-serif; /* 數字用 Roboto 比較好看 */
+  font-weight: bold;
+}
+
+/* === 狀態：被選取 (Selected) === */
+.match-card.selected {
+  /* 變色邏輯：淺金黃色背景 + 深藍邊框 */
+  background: rgba(255, 215, 0, 0.15); /* 金色透明背景 */
+  border: 1px solid var(--primary-color); /* 深藍邊框 */
+  transform: translateX(5px); /* 輕微向右位移，增加選取感 */
+  box-shadow: 0 4px 12px rgba(0, 84, 166, 0.15);
+}
+
+/* 左側指示條 (僅在選取時出現) */
+.match-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: var(--primary-color);
+}
+
+/* === UI 優化：通用右上角關閉按鈕 (取代醜醜的肚臍) === */
+.btn-close-absolute {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.btn-close-absolute:hover {
+  background: rgba(0,0,0,0.05);
+  color: #e74c3c;
+  transform: rotate(90deg);
+}
+
+/* === UI 優化：比賽紀錄多重篩選器 (Multi-Filter) === */
+.multi-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+  background: white;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  background: #f9f9f9;
+}
+
+/* 美化複選框 (Checkbox Tag Style) */
+.filter-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #f0f2f5;
+  color: #666;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+/* 當被選取時的樣式 */
+.filter-checkbox-label input:checked + span {
+  color: white;
+}
+.filter-checkbox-label:has(input:checked) {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 2px 5px rgba(0, 84, 166, 0.3);
+}
+
+.filter-checkbox-label input {
+  display: none; /* 隱藏原始 checkbox */
+}
+
+/* 讓比賽詳情卡片具有相對定位，以便放置關閉按鈕 */
+#player-analysis {
+  position: relative;
+  padding-top: 35px; /* 留空間給右上角按鈕 */
+}
+
+/* === Stage 4: 影音專區 (Immersive Dark Mode) === */
+/* 強制將影音區塊背景設為深色，創造沈浸感 */
+section#media {
+  background: #1a1a1a;
+  min-height: calc(100vh - 60px); /* 扣除 Header 高度 */
+  margin: -20px; /* 抵消 main 的 padding，讓黑色滿版 */
+  padding: 20px;
+  padding-bottom: 80px;
+  color: white;
+}
+
+section#media h2 {
+  color: var(--accent-gold);
+  border-left: 5px solid var(--primary-color);
+  padding-left: 15px;
+  margin-bottom: 25px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+/* 影片網格系統 */
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* 影片卡片 */
+.video-card {
+  background: #2d2d2d;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+  border: 1px solid #444;
+}
+
+.video-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 84, 166, 0.4);
+  border-color: var(--accent-gold);
+}
+
+/* 縮圖容器 */
+.video-thumb-container {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 比例 */
+  background: #000;
+  overflow: hidden;
+}
+
+.video-thumb {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0.8;
+  transition: opacity 0.3s, transform 0.5s;
+}
+
+.video-card:hover .video-thumb {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+/* 播放按鈕圖示 */
+.play-icon-overlay {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 0 20px rgba(0,0,0,0.8);
+  pointer-events: none;
+  transition: transform 0.3s;
+}
+
+.video-card:hover .play-icon-overlay {
+  transform: translate(-50%, -50%) scale(1.2);
+  color: var(--accent-gold);
+}
+
+/* 影片標題區 */
+.video-info {
+  padding: 15px;
+}
+
+.video-title {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #eee;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.video-meta {
+  font-size: 0.85rem;
+  color: #aaa;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* === Stage 4: 後台管理 UI 美化 (Glassmorphism Inputs) === */
+.admin-form-card {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  margin-bottom: 20px;
+}
+
+.admin-form-group {
+  margin-bottom: 15px;
+}
+
+.admin-form-group label {
+  display: block;
+  font-weight: bold;
+  color: var(--primary-dark);
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.admin-input, .admin-textarea, .admin-select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  background: #f9f9f9;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.admin-input:focus, .admin-textarea:focus, .admin-select:focus {
+  background: white;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(0, 84, 166, 0.1);
+}
+
+/* 影片燈箱 (Video Modal) - 全黑背景 */
+.video-modal-content {
+  background: black !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 900px !important;
+  aspect-ratio: 16/9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-modal-close {
+  position: absolute;
+  top: -40px; right: 0;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 3001;
+}
+
+/* 管理後台表格優化 */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px; /* 強制最小寬度，避免手機上擠壓，允許滑動 */
+  background: white;
+}
+
+.admin-table th, .admin-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap; /* 禁止文字換行，確保整齊 */
+}
+
+.admin-table th {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: bold;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* 操作按鈕 */
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  margin-right: 8px;
+  padding: 5px;
+  transition: transform 0.2s;
+}
+
+.btn-icon.edit { color: var(--primary-color); }
+.btn-icon.delete { color: #e74c3c; }
+.btn-icon:hover { transform: scale(1.2); }
+
+
+/* === Bug Fix 2: 強制提高 Header 層級，確保漢堡選單可點擊 === */
+header {
+  position: fixed; /* 或 sticky，視您原本設計而定 */
+  top: 0;
+  z-index: 3000 !important; /* 確保高於 overlay 和 sidebar */
+}
+
+/* === Bug Fix 3: 優化請假列表 (手機版不使用表格，改用卡片條列) === */
+.leave-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.leave-item {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 4px solid var(--primary-color); /* 左側色條裝飾 */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.leave-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.leave-item-name {
+  font-weight: bold;
+  font-size: 1.05rem;
+  color: var(--text-main);
+}
+
+.leave-item-date {
+  font-size: 0.9rem;
+  color: #666;
+  background: #f0f2f5;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.leave-item-reason {
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.4;
+}
+
+/* 刪除用的複選框容器 */
+.leave-checkbox-wrapper {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 若有複選框，內容要留一點空間給右邊 */
+.leave-item.has-checkbox {
+  padding-right: 40px;
+}
+
+
+/* ============================================================
+   Patch v10: Header click fix + Admin leave card actions
+   (Appended to override previous definitions)
+   ============================================================ */
+
+/* === 1. 修復 Header 點擊失效 (關鍵修正) === */
+header {
+  position: fixed; /* 強制固定在視窗頂部 */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px; /* 明確指定高度 */
+  z-index: 3000 !important; /* 最高層級 */
+  background: var(--primary-gradient);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+}
+
+/* 確保按鈕本身可以被點擊 */
+#menu-toggle {
+  position: relative;
+  z-index: 3001;
+  cursor: pointer;
+  padding: 10px; /* 增加點擊範圍 */
+  margin-right: -10px; /* 修正視覺位置 */
+}
+
+/* 為了避免內容被 fixed header 蓋住，main 要往下推 */
+main {
+  margin-top: 70px; /* 60px header + 10px gap */
+  padding-bottom: 80px;
+}
+
+/* === 2. 管理後台：請假卡片樣式 (無捲軸版) === */
+.leave-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leave-item {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border-left: 5px solid var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.leave-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.leave-item-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.leave-item-date {
+  font-size: 0.85rem;
+  color: #555;
+  background: #f0f2f5;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.leave-item-reason {
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.5;
+  background: #fafafa;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+/* 管理後台專用：卡片底部的操作列 */
+.leave-item-actions {
+  border-top: 1px dashed #eee;
+  padding-top: 10px;
+  margin-top: 5px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.action-btn.edit { color: var(--primary-color); }
+.action-btn.edit:hover { background: rgba(0, 84, 166, 0.1); }
+
+.action-btn.delete { color: #e74c3c; }
+.action-btn.delete:hover { background: rgba(231, 76, 60, 0.1); }
+
+/* ==========================================================
+   styles.css - Fixes & Tweaks (Override Patch v11)
+   Focus: header, #menu-toggle/#back-button hit area, leave-item compact cards
+   ========================================================== */
+
+/* === 1. Header 與 按鈕終極修復 === */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  /* 確保層級最高，且背景不透明 */
+  background: var(--primary-gradient);
+  z-index: 5000 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+
+  /* 佈局設定 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Logo左，按鈕右 */
+  padding: 0 1rem; /* 左右留白 */
+}
+
+/* 標題 (Logo) */
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  /* ★ 新增這兩行 */
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 3002;
+}
+
+/* 按鈕容器 (包含返回鍵與漢堡選單) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%; /* 撐滿高度 */
+}
+
+/* 漢堡選單與返回按鈕 - 強制感應區 */
+#menu-toggle, #back-button {
+  position: relative; /* 改回相對定位，但在 Flex 容器中 */
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem; /* 圖示大一點 */
+  cursor: pointer;
+
+  /* 關鍵：加大點擊範圍 (Hit Area) */
+  padding: 0 15px;
+  height: 60px; /* 與 Header 等高 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* 確保層級 */
+  z-index: 5002 !important;
+}
+
+#menu-toggle:active, #back-button:active {
+  background: rgba(255, 255, 255, 0.1); /* 點擊回饋 */
+}
+
+/* 避免 Main 被 Fixed Header 遮住 */
+main {
+  margin-top: 60px;
+  padding: 15px;
+  padding-bottom: 80px;
+  min-height: calc(100vh - 60px);
+}
+
+/* === 2. 管理後台請假卡片 (緊湊優化版) === */
+.leave-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* 卡片間距縮小 */
+}
+
+.leave-item {
+  background: white;
+  border-radius: 10px;
+  padding: 12px 15px; /* 內部縮減 padding */
+  border-left: 4px solid var(--primary-color);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* 內容間距縮小 */
+  position: relative;
+}
+
+.leave-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* 垂直置中 */
+}
+
+.leave-item-name {
+  font-weight: 700;
+  font-size: 1.1rem; /* 姓名維持大字體 */
+  color: var(--text-main);
+}
+
+/* 日期與時間：同一列顯示 */
+.leave-item-date {
+  font-size: 0.95rem; /* 字體放大 */
+  color: #444; /* 深灰色，對比度高一點 */
+  font-weight: 500;
+  background: #f4f6f8;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block; /* 確保不換行 */
+}
+
+/* 在 span 內部的時間字體樣式 (若 HTML 有分開包) */
+.leave-item-date span {
+  margin-left: 8px;
+  font-size: 0.95rem; /* 時間也放大 */
+  color: var(--primary-color); /* 用顏色區隔 (例如藍色) */
+  font-weight: 700;
+}
+
+.leave-item-reason {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+  margin-top: 2px;
+  padding-left: 2px;
+}
+
+/* 操作按鈕列：高度縮緊 */
+.leave-item-actions {
+  border-top: 1px dashed #eee;
+  padding-top: 6px; /* 縮小上方留白 */
+  margin-top: 6px;  /* 縮小與上方內容距離 */
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  font-size: 0.85rem; /* 按鈕文字稍微縮小 */
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 8px; /* 按鈕感應區 */
+  border-radius: 4px;
+}
+
+/* 其餘樣式保持不變... */
+
+/* ==========================================================
+   styles.css - Fixes & Tweaks (Override Patch)
+   Focus: header, #menu-toggle/#back-button hit area, leave-item compact cards
+   ========================================================== */
+
+/* === 1. Header 與 按鈕終極修復 === */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  /* 確保層級最高，且背景不透明 */
+  background: var(--primary-gradient);
+  z-index: 5000 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+
+  /* 佈局設定 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Logo左，按鈕右 */
+  padding: 0 1rem; /* 左右留白 */
+}
+
+/* 標題 (Logo) */
+header h1 {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 確保文字不會蓋到按鈕 */
+  z-index: 5001;
+  pointer-events: none; /* 讓點擊穿透文字，避免誤觸 */
+}
+
+/* 按鈕容器 (包含返回鍵與漢堡選單) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%; /* 撐滿高度 */
+}
+
+/* 漢堡選單與返回按鈕 - 強制感應區 */
+#menu-toggle, #back-button {
+  position: relative; /* 改回相對定位，但在 Flex 容器中 */
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem; /* 圖示大一點 */
+  cursor: pointer;
+
+  /* 關鍵：加大點擊範圍 (Hit Area) */
+  padding: 0 15px;
+  height: 60px; /* 與 Header 等高 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* 確保層級 */
+  z-index: 5002 !important;
+}
+
+#menu-toggle:active, #back-button:active {
+  background: rgba(255, 255, 255, 0.1); /* 點擊回饋 */
+}
+
+/* 避免 Main 被 Fixed Header 遮住 */
+main {
+  margin-top: 60px;
+  padding: 15px;
+  padding-bottom: 80px;
+  min-height: calc(100vh - 60px);
+}
+
+/* === 2. 管理後台請假卡片 (緊湊優化版) === */
+.leave-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* 卡片間距縮小 */
+}
+
+.leave-item {
+  background: white;
+  border-radius: 10px;
+  padding: 12px 15px; /* 內部縮減 padding */
+  border-left: 4px solid var(--primary-color);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* 內容間距縮小 */
+  position: relative;
+}
+
+.leave-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* 垂直置中 */
+}
+
+.leave-item-name {
+  font-weight: 700;
+  font-size: 1.1rem; /* 姓名維持大字體 */
+  color: var(--text-main);
+}
+
+/* 日期與時間：同一列顯示 */
+.leave-item-date {
+  font-size: 0.95rem; /* 字體放大 */
+  color: #444; /* 深灰色，對比度高一點 */
+  font-weight: 500;
+  background: #f4f6f8;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block; /* 確保不換行 */
+}
+
+/* 在 span 內部的時間字體樣式 (若 HTML 有分開包) */
+.leave-item-date span {
+  margin-left: 8px;
+  font-size: 0.95rem; /* 時間也放大 */
+  color: var(--primary-color); /* 用顏色區隔 (例如藍色) */
+  font-weight: 700;
+}
+
+.leave-item-reason {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+  margin-top: 2px;
+  padding-left: 2px;
+}
+
+/* 操作按鈕列：高度縮緊 */
+.leave-item-actions {
+  border-top: 1px dashed #eee;
+  padding-top: 6px; /* 縮小上方留白 */
+  margin-top: 6px;  /* 縮小與上方內容距離 */
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  font-size: 0.85rem; /* 按鈕文字稍微縮小 */
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 8px; /* 按鈕感應區 */
+  border-radius: 4px;
+}
+
+/* 其餘樣式保持不變... */
+
+/* === Tweaks: Header title clickable === */
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  cursor: pointer;       /* 滑鼠移過去變手指 */
+  pointer-events: auto;  /* 確保能接收點擊事件 */
+  position: relative;    /* 配合 z-index */
+  z-index: 3002;         /* 確保比 header 背景高 */
+}
