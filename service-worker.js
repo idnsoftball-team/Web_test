@@ -1,6 +1,6 @@
 // 變更快取名稱以確保更新後的文件能被載入
 // 更新快取名稱以觸發新版安裝
-const CACHE_NAME = 'static-v20260107-4';
+const CACHE_NAME = 'static-v20260107-5';
 // 使用相對路徑，確保在子資料夾或 GitHub Pages 部署時正確
 const FILES_TO_CACHE = [
   './',
