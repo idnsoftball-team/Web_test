@@ -1,10 +1,12 @@
-// script.js - v22.0 Final Fix (Type Conversion)
+// script.js - v23.0 Final (Auto-Fix Login UI)
 
-const APP_VERSION = '22.0'; 
-// ★★★ 請確認這是您最新的 Web App URL ★★★
+const APP_VERSION = '23.0'; 
+// ★★★ 請保留您測試成功的私人 Gmail 網址 ★★★
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
 
-// ... (Global Data & Weekdays 保持不變) ...
+// ... (Clear SW) ...
+if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(r => r.forEach(i => i.unregister())); }
+
 let announcements=[], schedule={}, players=[], staff=[], matches=[], leaveRequestsData=[];
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const defaultSlots = ['17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00'];
@@ -22,32 +24,17 @@ function initEmptySchedule() {
 }
 initEmptySchedule();
 
-// === 資料讀取 (GET) ===
+// === Load Data ===
 async function loadAllData() {
   const loader = document.getElementById('app-loader');
   try {
-    // 加入時間戳記防止快取
     const fetchUrl = `${GAS_API_URL}?action=get_all_data&t=${new Date().getTime()}`;
-    console.log("Fetching:", fetchUrl);
-    
     const res = await fetch(fetchUrl);
     const text = await res.text();
     
-    // 錯誤攔截
-    if (text.trim().startsWith('<')) {
-        throw new Error("權限錯誤：請確認 GAS 部署權限為「任何人」。");
-    }
-
-    let data;
-    try {
-        data = JSON.parse(text);
-    } catch(e) {
-        throw new Error("資料格式錯誤 (非 JSON)");
-    }
-
+    if (text.trim().startsWith('<')) throw new Error("權限錯誤：請確認 GAS 部署權限為「任何人」");
+    const data = JSON.parse(text);
     if (data.status === 'error') throw new Error(data.message);
-
-    console.log("Data Loaded:", data);
 
     const norm = normalizeData(data);
     announcements = norm.announcements;
@@ -64,21 +51,18 @@ async function loadAllData() {
       if (!schedule[d][s]) schedule[d][s] = [];
       schedule[d][s].push(item);
     });
-    
     renderHome();
   } catch (e) {
     console.error(e);
     const msg = document.getElementById('loader-text');
-    if(msg) msg.innerHTML = `<span style="color:#ffdddd">載入失敗</span><br><span style="font-size:0.7em">${e.message}</span>`;
+    if(msg) msg.innerText = "載入失敗：" + e.message;
   } finally {
     if(loader) setTimeout(()=>loader.style.display='none', 500);
   }
 }
 
-// ★★★ 核心修正點：normalizeData ★★★
 function normalizeData(data) {
   const getVal = (obj, keys) => { for (const k of keys) if (obj[k]) return obj[k]; return ""; };
-  
   const anns = (data.announcements||[]).map(r => ({
     title: getVal(r, ['title', 'announcement_title']),
     date: String(getVal(r, ['date', 'announcement_date']) || '').split('T')[0],
@@ -114,8 +98,7 @@ function normalizeData(data) {
 
   const mapMatches = (data.matches||[]).map(r => ({
     rowId: r.rowId,
-    date: String(getVal(r, ['match_date', 'date']) || '').split('T')[0], // 強制轉字串
-    // ★★★ 修正這裡：強制 String() 包裹，避免數字導致 crash ★★★
+    date: String(getVal(r, ['match_date', 'date']) || '').split('T')[0],
     type: String(getVal(r, ['match_type', 'type'])||'').includes('雙')?'doubles':'singles',
     score: getVal(r, ['game_score', 'score'])||'',
     sets: r.set_scores||'',
@@ -127,7 +110,7 @@ function normalizeData(data) {
   return { announcements: anns, staff: mapStaff, players: mapPlayers, schedules, leaveRequests: leaves, matches: mapMatches, hero: data.hero||{} };
 }
 
-// Render Functions (保持不變)
+// Renderers
 function renderHome() {
   const bg = window.heroConfig?.hero_bg_url;
   if(bg) document.querySelector('.hero-bg-placeholder').style.backgroundImage = `url(${convertDriveLink(bg)})`;
@@ -176,10 +159,18 @@ function showMatchDetail(m) { const d=document.getElementById('player-analysis')
 function openVideoModal(id) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()" style="color:white;z-index:100"><i class="fas fa-times"></i></button><iframe src="https://www.youtube.com/embed/${id}?autoplay=1" style="width:100%;height:100%;border:none" allowfullscreen></iframe>`; m.style.background='black'; m.style.padding='0'; m.classList.add('active'); document.body.classList.add('modal-open'); }
 function hideModal() { document.querySelectorAll('.modal').forEach(m=>{m.classList.remove('active');m.style.background='';m.style.padding='';}); document.body.classList.remove('modal-open'); }
 
+// ★★★ 強制修正 Admin 介面：確保登入框存在 ★★★
 function renderAdmin() { 
     if(!sessionStorage.getItem('adm')) { 
-        document.getElementById('admin-login').classList.remove('hidden'); 
-        document.getElementById('admin-dashboard').classList.add('hidden'); 
+        document.getElementById('admin-dashboard').classList.add('hidden');
+        const loginContainer = document.getElementById('admin-login');
+        loginContainer.classList.remove('hidden');
+        // 強制重繪 Login HTML
+        loginContainer.innerHTML = `
+            <h3>系統登入</h3>
+            <input type="password" id="admin-password" class="admin-input" placeholder="輸入管理密碼">
+            <button id="admin-login-btn" class="admin-btn-login">登入</button>
+        `;
         document.getElementById('admin-login-btn').onclick=async()=>{ 
             const p=document.getElementById('admin-password').value; 
             const res=await fetch(GAS_API_URL,{method:'POST', body:JSON.stringify({action:'check_auth',password:p})}); 
