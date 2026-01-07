@@ -25,11 +25,13 @@
   
   <div class="bg-mesh"></div>
 
-  <header> 
-    <h1><i class="fas fa-table-tennis"></i> 光復桌球</h1>
+  <header>
+    <div class="header-left">
+      <button id="menu-toggle"><i class="fas fa-bars"></i></button>
+      <h1><i class="fas fa-table-tennis"></i> 光復桌球</h1>
+    </div>
     <div class="header-actions">
-        <button id="back-button" class="hidden"><i class="fas fa-arrow-left"></i></button>
-        <button id="menu-toggle"><i class="fas fa-bars"></i></button>
+      <button id="back-button" class="hidden"><i class="fas fa-arrow-left"></i></button>
     </div>
   </header>
 
@@ -151,11 +153,12 @@
             <div class="card">
                 <h3>功能選單</h3>
                 <div class="admin-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button id="admin-add-announcement" class="hero-btn" style="font-size:0.9rem;">新增公告</button>
-                    <button id="admin-view-leave" class="hero-btn" style="font-size:0.9rem;">查看請假紀錄</button>
-                    <button id="admin-manage-schedule" class="hero-btn" style="font-size:0.9rem;">管理排程</button>
-                    <button id="admin-settings" class="hero-btn" style="font-size:0.9rem;" onclick="showAdminSettings()">網站外觀設定</button>
-                </div>
+    <button id="admin-add-announcement" class="hero-btn" style="font-size:0.9rem;">新增公告</button>
+    <button id="admin-view-leave" class="hero-btn" style="font-size:0.9rem;">查看請假</button>
+    <button id="admin-manage-players" class="hero-btn" style="font-size:0.9rem;">球員名冊</button>
+    <button id="admin-manage-matches" class="hero-btn" style="font-size:0.9rem;">比賽紀錄</button>
+    <button id="admin-settings" class="hero-btn" style="font-size:0.9rem;" onclick="showAdminSettings()">網站設定</button>
+</div>
             </div>
             <div id="admin-content" style="margin-top:20px;"></div>
         </div>
