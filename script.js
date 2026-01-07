@@ -952,16 +952,52 @@ function showToast(msg) {
 }
 
 // Data Normalizer
+// script.js - 改良版 normalizeData (支援中英文欄位 + 除錯)
+
 function normalizeData(data) {
-    // Helper to map arrays to objects
-    const mapStaff = (data.staff || []).map(r => ({ id: String(r.staff_id||r.id), name: r.name }));
+    console.log("Raw Data from GAS:", data); // ★ 除錯用：請在 F12 Console 查看
+
+    // 1. Staff Map
+    const mapStaff = (data.staff || []).map(r => ({ 
+        id: String(r.staff_id || r.id || ''), 
+        name: r.name || r.staff_name || '未命名'
+    }));
+
+    // 2. Player Map
     const mapPlayers = (data.players || []).map(r => ({
-        id: String(r.player_id||r.id),
-        name: r.student_name||r.name,
+        id: String(r.player_id || r.id || ''),
+        name: r.student_name || r.name || '未命名',
         grade: r.grade,
         class: r.class,
-        paddle: r.paddle||r.team_no
+        paddle: r.paddle || r.team_no
     }));
+
+    // 3. Schedule Normalization (關鍵修正)
+    // 支援: weekday/星期, slot/時段, table_no/桌次, coach_id/教練ID...
+    const schedules = (data.training_schedule || []).map(r => {
+        // 嘗試讀取多種可能的欄位名稱
+        const day = r.weekday || r.date || r.day || r.星期 || ''; 
+        const slot = r.slot || r.time || r.時段 || '';
+        const table = r.table_no || r.table || r.桌次 || '';
+
+        // ID 查找 (容錯：轉成字串比對)
+        const cId = String(r.coach_id || r.coachId || '');
+        const paId = String(r.player_a_id || r.playerAId || '');
+        const pbId = String(r.player_b_id || r.playerBId || '');
+
+        return {
+            rowId: r.rowId,
+            date: day, // 前端 renderSchedule 使用 .date 或 .day
+            day: day,
+            slot: slot,
+            table: table,
+            coach: mapStaff.find(s => s.id === cId) || { name: cId }, // 若找不到對應ID，直接顯示ID
+            playerA: mapPlayers.find(p => p.id === paId) || { name: paId },
+            playerB: mapPlayers.find(p => p.id === pbId) || { name: pbId }
+        };
+    });
+
+    console.log("Normalized Schedules:", schedules); // ★ 除錯用：確認這裡是否有資料
 
     return {
         hero: data.hero,
@@ -969,27 +1005,20 @@ function normalizeData(data) {
         leaveRequests: data.leave_requests || [],
         staff: mapStaff,
         players: mapPlayers,
-        schedules: (data.training_schedule || []).map(r => ({
-            rowId: r.rowId,
-            date: r.weekday,
-            slot: r.slot,
-            table: r.table_no,
-            coach: mapStaff.find(s => s.id == r.coach_id),
-            playerA: mapPlayers.find(p => p.id == r.player_a_id),
-            playerB: mapPlayers.find(p => p.id == r.player_b_id)
-        })),
+        schedules: schedules,
         matches: (data.matches || []).map(r => ({
             rowId: r.rowId,
-            date: r.match_date,
-            type: (r.match_type||'').includes('雙') ? 'doubles' : 'singles',
-            score: r.game_score,
-            sets: r.set_scores,
-            players: [r.player1_id, r.player2_id].filter(Boolean),
-            opponents: [r.opponent1, r.opponent2].filter(Boolean),
-            video: { url: r.media_url }
+            date: r.match_date || r.date,
+            type: (r.match_type || '').includes('雙') ? 'doubles' : 'singles',
+            score: r.game_score || r.score,
+            sets: r.set_scores || r.sets,
+            players: [r.player1_id || r.p1, r.player2_id || r.p2].filter(Boolean),
+            opponents: [r.opponent1 || r.o1, r.opponent2 || r.o2].filter(Boolean),
+            video: { url: r.media_url || r.video }
         }))
     };
 }
+
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {

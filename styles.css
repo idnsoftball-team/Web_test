@@ -301,17 +301,33 @@ main {
 .action-btn.edit { color: var(--primary-color); }
 
 /* === 8. 比賽紀錄 & 篩選 === */
+/* 修正：比賽紀錄卡片 (恢復 Glassmorphism) */
 .match-card {
-  background: white; border-radius: 10px; padding: 12px 16px;
-  margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  border-left: 4px solid #ddd; cursor: pointer; transition: all 0.2s;
+  /* 關鍵：使用半透明背景與模糊濾鏡 */
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* 輕柔陰影 */
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 15px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  position: relative;
+  overflow: hidden;
 }
-.match-card:active { transform: scale(0.98); }
-/* 選取狀態 (JS 切換) */
+
+.match-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 84, 166, 0.15);
+  background: rgba(255, 255, 255, 0.9);
+}
+
 .match-card.selected {
-  background: rgba(255, 215, 0, 0.1);
-  border-left-color: var(--primary-color);
-  border: 1px solid var(--primary-color);
+  background: #fff;
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(0, 84, 166, 0.1);
 }
 
 .match-card-header { display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; margin-bottom: 4px; }
@@ -407,6 +423,46 @@ section#media h2 { color: var(--accent-gold); border-left: 4px solid var(--prima
 #back-to-top.show { opacity: 1; pointer-events: auto; }
 
 /* Admin Form Styles */
+
+/* 修正：管理員登入卡片 */
+#admin-login.card {
+  max-width: 400px;
+  margin: 10vh auto; /* 垂直置中 */
+  text-align: center;
+  background: rgba(255, 255, 255, 0.9); /* 比一般卡片更不透明一點 */
+  border: 1px solid rgba(255, 255, 255, 1);
+  box-shadow: 0 10px 40px rgba(0, 51, 102, 0.2);
+  padding: 40px 30px;
+}
+#admin-login h3 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: var(--primary-dark);
+}
+#admin-login input {
+  background: #f0f2f5;
+  border: 2px solid transparent;
+  padding: 12px;
+  border-radius: 50px; /* 圓角輸入框 */
+  text-align: center;
+  margin-bottom: 15px;
+  transition: all 0.3s;
+}
+#admin-login input:focus {
+  background: white;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(0, 84, 166, 0.1);
+}
+#admin-login button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 50px;
+  font-size: 1rem;
+  background: var(--primary-gradient); /* 恢復漸層按鈕 */
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 84, 166, 0.3);
+}
+
 .admin-form-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
 .admin-form-group { margin-bottom: 15px; }
 .admin-form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #444; font-size: 0.9rem; }
@@ -417,11 +473,24 @@ section#media h2 { color: var(--accent-gold); border-left: 4px solid var(--prima
 .admin-input:focus { border-color: var(--primary-color); background: white; }
 
 /* Player Roster Cards */
-.img-placeholder {
-  width: 100%; aspect-ratio: 1/1; max-width: 120px; margin: 0 auto 10px auto;
-  background: #f0f2f5; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 2.5rem; color: #bdc3c7;
+/* 修正：名冊卡片 (恢復圖片框質感) */
+#roster .card {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.8); /* 稍微透一點 */
+  border: 1px solid white;
 }
-#roster .card { text-align: center; }
+.img-placeholder {
+  width: 80px; height: 80px; /* 控制大小 */
+  margin: 0 auto 15px auto;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); /* 質感灰漸層 */
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* 頭像浮起 */
+}
+/* 教練與球員圖標顏色區分 */
+#roster-staff .img-placeholder {
+  background: var(--primary-gradient);
+}
 
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
