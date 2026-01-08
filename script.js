@@ -1,14 +1,16 @@
-// script.js - v26.0 (Fixed Type Mismatch Bug)
+// script.js - v27.0 (Admin Player Management)
 
-const APP_VERSION = '26.0';
+const APP_VERSION = '27.0';
 // ★★★ 請保留您的私人 Gmail GAS 網址 ★★★
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
 
+// Clear SW
 if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(r => r.forEach(i => i.unregister())); }
 
 let announcements=[], schedule={}, players=[], staff=[], matches=[], leaveRequestsData=[];
 let adminLeaveShowToday = false;
 
+// Global Constants
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const defaultSlots = ['17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00'];
 
@@ -25,7 +27,7 @@ function initEmptySchedule() {
 }
 initEmptySchedule();
 
-// === Load Data (GET) ===
+// === Load Data ===
 async function loadAllData() {
   const loader = document.getElementById('app-loader');
   try {
@@ -70,7 +72,9 @@ function normalizeData(data) {
   })).filter(a=>a.title);
   
   const mapStaff = (data.staff||[]).map(r => ({ id: String(r.staff_id||r.id), name: r.name||'教練' }));
+  
   const mapPlayers = (data.players||[]).map(r => ({
+    rowId: r.rowId, // For Admin Edit
     id: String(r.player_id||r.id),
     name: getVal(r, ['student_name', 'name']),
     grade: r.grade, class: r.class, paddle: r.paddle
@@ -87,7 +91,7 @@ function normalizeData(data) {
     };
   });
   const leaves = (data.leave_requests||[]).map(r => ({
-    rowId: r.rowId, // Keep original from GAS (Number)
+    rowId: r.rowId,
     name: getVal(r, ['created_by_email', 'name']) || '未知',
     date: String(getVal(r, ['leave_date', 'date']) || '').split('T')[0],
     slot: r.slot||'', reason: r.reason||''
@@ -233,6 +237,7 @@ function showAnnouncementDetail(title,date,content) { const m=document.getElemen
 function openVideoModal(id) { const m=document.getElementById('announcement-detail'); m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()" style="color:white;z-index:100"><i class="fas fa-times"></i></button><iframe src="https://www.youtube.com/embed/${id}?autoplay=1" style="width:100%;height:100%;border:none" allowfullscreen></iframe>`; m.style.background='black'; m.style.padding='0'; m.classList.add('active'); document.body.classList.add('modal-open'); }
 function hideModal() { document.querySelectorAll('.modal').forEach(m=>{m.classList.remove('active');m.style.background='';m.style.padding='';}); document.body.classList.remove('modal-open'); }
 
+// Admin Logic
 function renderAdmin() { 
     if(!sessionStorage.getItem('adm')) { 
         document.getElementById('admin-dashboard').classList.add('hidden');
@@ -260,79 +265,105 @@ function renderAdmin() {
 function bindAdmin() { 
     document.getElementById('admin-add-announcement').onclick=()=>{document.getElementById('admin-content').innerHTML=`<div class="card"><h3>新增公告</h3><input id="at" class="admin-input" placeholder="標題"><input type="date" id="ad" class="admin-input"><textarea id="ac" class="admin-textarea"></textarea><button class="hero-btn" onclick="postAnn()">發布</button></div>`}; 
     document.getElementById('admin-view-leave').onclick=showAdminLeaveList;
-    document.getElementById('admin-manage-players').onclick=()=>showToast('球員管理: 開發中'); 
+    document.getElementById('admin-manage-players').onclick=showAdminPlayerList; // ★ 新增綁定
     document.getElementById('admin-manage-matches').onclick=()=>showToast('比賽管理: 開發中'); 
     document.getElementById('admin-settings').onclick=()=>showAdminSettings(); 
 }
 
-// ★★★ Admin Leave List: Filter & Sort & Edit ★★★
+// === Admin: Leave ===
 function showAdminLeaveList() {
     const c = document.getElementById('admin-content');
     let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3>請假管理</h3><button id="adm-filter-today" class="btn-filter-today ${adminLeaveShowToday?'active':''}"><i class="fas fa-calendar-day"></i> 只看今日</button></div>`;
-    
-    // Sort: Nearest First
     let list = leaveRequestsData.slice().sort((a,b) => new Date(a.date) - new Date(b.date));
-    if(adminLeaveShowToday) {
-        const today = new Date().toISOString().split('T')[0];
-        list = list.filter(l => l.date === today);
-    }
-
+    if(adminLeaveShowToday) { const today = new Date().toISOString().split('T')[0]; list = list.filter(l => l.date === today); }
     if(list.length === 0) h += '<div class="card">無資料</div>';
     else {
         list.forEach(l => {
-            h += `
-            <div class="card" style="display:flex; flex-direction:column; gap:8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight:bold; font-size:1.1rem;">${escapeHtml(l.name)}</div>
-                    <div style="font-size:0.85rem; color:#666;">${l.date}</div>
-                </div>
-                <div style="background:#f9f9f9; padding:5px 8px; border-radius:4px; font-size:0.9rem;">
-                    <i class="far fa-clock"></i> ${escapeHtml(l.slot)}
-                </div>
+            h += `<div class="card" style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-weight:bold; font-size:1.1rem;">${escapeHtml(l.name)}</div><div style="font-size:0.85rem; color:#666;">${l.date}</div></div>
+                <div style="background:#f9f9f9; padding:5px 8px; border-radius:4px; font-size:0.9rem;"><i class="far fa-clock"></i> ${escapeHtml(l.slot)}</div>
                 <div style="color:#555; font-size:0.9rem;">${escapeHtml(l.reason)}</div>
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:5px; border-top:1px solid #eee; padding-top:8px;">
                     <button class="action-btn" onclick="editLeave('${l.rowId}')" style="color:var(--primary-color);border:none;background:none;font-weight:bold;"><i class="fas fa-edit"></i> 編輯</button>
                     <button class="action-btn" onclick="delLeave('${l.rowId}')" style="color:red;border:none;background:none;font-weight:bold;"><i class="fas fa-trash"></i> 刪除</button>
-                </div>
-            </div>`;
+                </div></div>`;
         });
     }
     c.innerHTML = h;
     document.getElementById('adm-filter-today').onclick = () => { adminLeaveShowToday=!adminLeaveShowToday; showAdminLeaveList(); };
 }
-
-// ★★★ 關鍵修正：寬鬆比較 (==) 以匹配字串與數字 ID ★★★
 window.editLeave = (rowId) => {
     const l = leaveRequestsData.find(x => x.rowId == rowId);
     if(!l) return;
     const c = document.getElementById('admin-content');
-    c.innerHTML = `
-        <div class="card">
-            <h3>編輯請假</h3>
-            <label>姓名</label><input id="el-name" class="admin-input" value="${escapeHtml(l.name)}">
-            <label>日期</label><input type="date" id="el-date" class="admin-input" value="${l.date}">
-            <label>時段</label>
-            <select id="el-slot" class="admin-input">
-                ${defaultSlots.map(s => `<option value="${s}" ${s===l.slot?'selected':''}>${s}</option>`).join('')}
-            </select>
-            <label>事由</label><textarea id="el-reason" class="admin-textarea">${escapeHtml(l.reason)}</textarea>
-            <div style="margin-top:15px; display:flex; gap:10px;">
-                <button class="hero-btn" onclick="saveLeaveEdit('${rowId}')">儲存</button>
-                <button class="hero-btn" style="background:#ccc" onclick="showAdminLeaveList()">取消</button>
-            </div>
-        </div>`;
+    c.innerHTML = `<div class="card"><h3>編輯請假</h3><label>姓名</label><input id="el-name" class="admin-input" value="${escapeHtml(l.name)}"><label>日期</label><input type="date" id="el-date" class="admin-input" value="${l.date}"><label>時段</label><select id="el-slot" class="admin-input">${defaultSlots.map(s => `<option value="${s}" ${s===l.slot?'selected':''}>${s}</option>`).join('')}</select><label>事由</label><textarea id="el-reason" class="admin-textarea">${escapeHtml(l.reason)}</textarea><div style="margin-top:15px; display:flex; gap:10px;"><button class="hero-btn" onclick="saveLeaveEdit('${rowId}')">儲存</button><button class="hero-btn" style="background:#ccc" onclick="showAdminLeaveList()">取消</button></div></div>`;
+};
+window.saveLeaveEdit = async (rowId) => {
+    const payload = { rowId: rowId, name: document.getElementById('el-name').value, date: document.getElementById('el-date').value, slot: document.getElementById('el-slot').value, reason: document.getElementById('el-reason').value };
+    await sendToGasWithAuth('update_leave', payload); showAdminLeaveList();
 };
 
-window.saveLeaveEdit = async (rowId) => {
+// === ★★★ Admin: Player Management (New) ★★★ ===
+function showAdminPlayerList() {
+    const c = document.getElementById('admin-content');
+    let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>球員名冊</h3>
+        <button class="hero-btn" onclick="editPlayer()"><i class="fas fa-plus"></i> 新增球員</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;">`;
+    
+    players.forEach(p => {
+        h += `<div class="card" style="margin:0;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-weight:bold;">${escapeHtml(p.name)}</div>
+                <div style="font-size:0.85rem;color:#666;">${p.grade || '?'}年 ${p.class || '?'}班</div>
+            </div>
+            <div style="display:flex;gap:5px;">
+                <button onclick="editPlayer('${p.rowId}')" style="border:none;background:none;color:var(--primary-color);cursor:pointer;"><i class="fas fa-edit"></i></button>
+                <button onclick="delPlayer('${p.rowId}')" style="border:none;background:none;color:red;cursor:pointer;"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>`;
+    });
+    h += '</div>';
+    c.innerHTML = h;
+}
+
+window.editPlayer = (rowId) => {
+    const p = rowId ? players.find(x => x.rowId == rowId) : { name:'', grade:'', class:'', paddle:'' };
+    const title = rowId ? '編輯球員' : '新增球員';
+    const c = document.getElementById('admin-content');
+    c.innerHTML = `
+    <div class="card">
+        <h3>${title}</h3>
+        <label>姓名</label><input id="ep-name" class="admin-input" value="${escapeHtml(p.name)}">
+        <label>年級</label><input id="ep-grade" class="admin-input" type="number" value="${p.grade||''}">
+        <label>班級</label><input id="ep-class" class="admin-input" type="number" value="${p.class||''}">
+        <label>膠皮/備註</label><input id="ep-paddle" class="admin-input" value="${escapeHtml(p.paddle||'')}">
+        <div style="margin-top:15px; display:flex; gap:10px;">
+            <button class="hero-btn" onclick="savePlayerEdit('${rowId||''}')">儲存</button>
+            <button class="hero-btn" style="background:#ccc" onclick="showAdminPlayerList()">取消</button>
+        </div>
+    </div>`;
+};
+
+window.savePlayerEdit = async (rowId) => {
     const payload = {
         rowId: rowId,
-        name: document.getElementById('el-name').value,
-        date: document.getElementById('el-date').value,
-        slot: document.getElementById('el-slot').value,
-        reason: document.getElementById('el-reason').value
+        name: document.getElementById('ep-name').value,
+        grade: document.getElementById('ep-grade').value,
+        class: document.getElementById('ep-class').value,
+        paddle: document.getElementById('ep-paddle').value
     };
-    await sendToGasWithAuth('update_leave', payload);
-    showAdminLeaveList();
+    if(!payload.name) return alert('請輸入姓名');
+    await sendToGasWithAuth('save_player', payload);
+    showAdminPlayerList();
+};
+
+window.delPlayer = async (id) => {
+    if(confirm('確定要刪除這位球員嗎？')) {
+        await sendToGasWithAuth('delete_player', {rowId: id});
+        showAdminPlayerList();
+    }
 };
 
 function showAdminSettings() { const c = document.getElementById('admin-content'); const curr = window.heroConfig?.hero_bg_url || ''; c.innerHTML = `<div class="card"><h3>網站設定</h3><label>首頁背景圖 URL</label><input id="conf-bg" class="admin-input" value="${escapeHtml(curr)}"><button class="hero-btn" onclick="saveConfig()">儲存設定</button></div>`; }
