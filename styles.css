@@ -1,4 +1,4 @@
-/* styles.css - v29.0 (Accordion Players & UI Fixes) */
+/* styles.css - v30.0 (Unified Roster Styles) */
 :root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --bg-color:#f4f7f6; --text-main:#2c3e50; }
 * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family:'Roboto',sans-serif; background:var(--bg-color); color:var(--text-main); padding-bottom:90px; }
@@ -45,7 +45,7 @@ section#matches h2::before { content:''; display:block; width:6px; height:24px; 
 .match-card-score.expanded .match-details-panel { display: block; }
 @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
 
-/* Leave & Roster */
+/* Leave */
 .btn-filter-today { background: white; border: 1px solid var(--primary-color); color: var(--primary-color); padding: 6px 15px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
 .btn-filter-today.active { background: var(--primary-color); color: white; }
 .leave-card-new { background:white; border-radius:12px; padding:15px; box-shadow:0 2px 6px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:10px; border-left:5px solid var(--primary-color); margin-bottom:12px; position: relative; }
@@ -55,6 +55,13 @@ section#matches h2::before { content:''; display:block; width:6px; height:24px; 
 .leave-meta-row { display: flex; gap: 10px; font-size: 0.85rem; color: #666; align-items: center; }
 .meta-tag { display: flex; align-items: center; gap: 4px; background: #f0f2f5; padding: 4px 8px; border-radius: 6px; }
 .leave-reason-box { background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px; font-size: 0.9rem; color: #444; line-height: 1.4; }
+
+/* ★★★ Roster (Public) ★★★ */
+.roster-card { cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+.roster-card.expanded { border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.roster-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.roster-details-panel { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eee; font-size: 0.85rem; color: #555; }
+.roster-card.expanded .roster-details-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 
 /* Admin Player Accordion */
 .player-admin-card { cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
