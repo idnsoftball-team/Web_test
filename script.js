@@ -1,6 +1,6 @@
-// script.js - v28.0 (Phase 1: UI Feedback & Layout Fix)
+// script.js - v29.0 (Player Filter, Sort, Accordion, New Fields)
 
-const APP_VERSION = '28.0';
+const APP_VERSION = '29.0';
 // ★★★ 請保留您的私人 Gmail GAS 網址 ★★★
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycby2mZbg7Wbs9jRjgzPDzXM_3uldQfsSKv_D0iJjY1aN0qQkGl4ZtPDHcQ8k3MqAp9pxHA/exec";
 
@@ -8,6 +8,12 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().t
 
 let announcements=[], schedule={}, players=[], staff=[], matches=[], leaveRequestsData=[];
 let adminLeaveShowToday = false;
+
+// Options for Dropdowns
+const OPT_GRADES = ['1','2','3','4','5','6','畢業'];
+const OPT_PADDLES = ['平面','短顆','中顆','長顆','Anti','不詳'];
+const OPT_GENDER = ['男','女'];
+const OPT_HAND = ['右手','左手'];
 
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const defaultSlots = ['17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00', '11:00-12:00', '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00'];
@@ -25,7 +31,7 @@ function initEmptySchedule() {
 }
 initEmptySchedule();
 
-// === Load Data (GET) ===
+// === Load Data ===
 async function loadAllData() {
   const loader = document.getElementById('app-loader');
   try {
@@ -70,11 +76,18 @@ function normalizeData(data) {
   })).filter(a=>a.title);
   
   const mapStaff = (data.staff||[]).map(r => ({ id: String(r.staff_id||r.id), name: r.name||'教練' }));
+  
   const mapPlayers = (data.players||[]).map(r => ({
     rowId: r.rowId,
     id: String(r.player_id||r.id),
     name: getVal(r, ['student_name', 'name']),
-    grade: r.grade, class: r.class, paddle: r.paddle
+    nickname: getVal(r, ['nickname']), // 新欄位
+    grade: r.grade, 
+    class: r.class, 
+    paddle: r.paddle,
+    gender: getVal(r, ['gender']),     // 新欄位
+    hand: getVal(r, ['hand']),         // 新欄位
+    play_style: getVal(r, ['play_style']) // 新欄位
   }));
   const schedules = (data.training_schedule||[]).map(r => {
     const cId = String(r.coach_id||'');
@@ -106,10 +119,10 @@ function normalizeData(data) {
   return { announcements: anns, staff: mapStaff, players: mapPlayers, schedules, leaveRequests: leaves, matches: mapMatches, hero: data.hero||{} };
 }
 
-// Renderers (Home, Announce, Leave, Match, Roster, Schedule, Media) - Preserved
-function renderHome() { const bg=window.heroConfig?.hero_bg_url; if(bg)document.querySelector('.hero-bg-placeholder').style.backgroundImage=`url(${convertDriveLink(bg)})`; const a=document.getElementById('home-announcements'); if(a){a.innerHTML=''; const l=announcements.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,3); if(l.length===0)a.innerHTML='<div style="text-align:center;padding:10px;color:#999">無最新動態</div>'; l.forEach(i=>{a.innerHTML+=`<div class="card" onclick="showAnnouncementDetail('${escapeHtml(i.title)}','${i.date}','${escapeHtml(i.content)}')"><div style="display:flex;justify-content:space-between;align-items:center"><h4 style="margin:0;color:#0054a6">${escapeHtml(i.title)}</h4><span style="font-size:0.8rem;color:#888">${i.date}</span></div><p style="margin-top:6px;font-size:0.9rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(i.content)}</p></div>`});} const hl=document.getElementById('home-leave-overview'); if(hl){ const t=new Date().toISOString().split('T')[0]; const tl=leaveRequestsData.filter(l=>l.date===t); hl.innerHTML=''; if(tl.length===0)hl.innerHTML='<div style="color:#999;font-size:0.9rem;">今日無請假</div>'; else tl.forEach(l=>{hl.innerHTML+=`<div style="background:white;padding:10px;border-radius:8px;margin-bottom:5px;border-left:3px solid #ffcc00;font-size:0.9rem;"><strong>${escapeHtml(l.name)}</strong> <span style="color:#666">${l.slot}</span></div>`}); } renderLeaveList(); }
+// Render Functions (Home, Announce, Leave, Match, Roster, Schedule, Media) - Preserved
+function renderHome() { const bg=window.heroConfig?.hero_bg_url; if(bg)document.querySelector('.hero-bg-placeholder').style.backgroundImage=`url(${convertDriveLink(bg)})`; const a=document.getElementById('home-announcements'); if(a){a.innerHTML=''; const l=announcements.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,3); if(l.length===0)a.innerHTML='<div style="text-align:center;padding:10px;color:#999">無最新動態</div>'; l.forEach(i=>{a.innerHTML+=`<div class="card" onclick="showAnnouncementDetail('${escapeHtml(i.title)}','${i.date}','${escapeHtml(i.content)}')"><div style="display:flex;justify-content:space-between;align-items:center"><h4 style="margin:0;color:#0054a6">${escapeHtml(i.title)}</h4><span style="font-size:0.8rem;color:#888">${i.date}</span></div><p style="margin-top:6px;font-size:0.9rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(i.content)}</p></div>`});} const hl=document.getElementById('home-leave-overview'); if(hl){ const t=new Date().toISOString().split('T')[0]; const tl=leaveRequestsData.filter(l=>l.date===t); hl.innerHTML=''; if(tl.length===0)hl.innerHTML='<div style="color:#999;font-size:0.9rem;">今日無請假</div>'; else tl.forEach(l=>{hl.innerHTML+=`<div style="background:white;padding:10px;border-radius:8px;margin-bottom:5px;border-left:3px solid #ffcc00;font-size:0.9rem;display:flex;justify-content:space-between;"><strong>${escapeHtml(l.name)}</strong> <span style="color:#666">${l.slot}</span></div>`}); } renderLeaveList(); }
 function renderAnnouncements() { const d=document.getElementById('announcement-list'); d.innerHTML=''; const l=announcements.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)); if(l.length===0){d.innerHTML='<div style="text-align:center;padding:20px">無公告</div>';return} l.forEach(a=>{d.innerHTML+=`<div class="card" onclick="showAnnouncementDetail('${escapeHtml(a.title)}','${a.date}','${escapeHtml(a.content)}')"><div style="display:flex;justify-content:space-between;"><h4 style="margin:0">${escapeHtml(a.title)}</h4><span style="font-size:0.8rem;color:#888">${a.date}</span></div><p style="margin-top:8px;color:#555">${escapeHtml(a.content)}</p></div>`}); }
-function renderLeaveList() { const d=document.getElementById('leave-list'); d.innerHTML=''; if(leaveRequestsData.length===0){d.innerHTML='<div style="text-align:center;color:#888;padding:20px">無資料</div>';return} leaveRequestsData.forEach(l=>{d.innerHTML+=`<div class="leave-card-new"><div class="leave-header-row"><span class="leave-name-large">${escapeHtml(l.name)}</span></div><div class="leave-tags-row"><div class="tag-date"><i class="far fa-calendar-alt"></i> ${l.date}</div><div class="tag-time"><i class="far fa-clock"></i> ${escapeHtml(l.slot)}</div></div><div class="leave-reason-box">${escapeHtml(l.reason)}</div></div>`}); }
+function renderLeaveList() { const d=document.getElementById('leave-list'); d.innerHTML=''; let list=leaveRequestsData.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)); if(list.length===0){d.innerHTML='<div style="text-align:center;color:#888;padding:20px">無資料</div>';return} list.forEach(l=>{d.innerHTML+=`<div class="leave-card-new"><div class="leave-header-row"><span class="leave-name-large">${escapeHtml(l.name)}</span></div><div class="leave-meta-row"><div class="meta-tag"><i class="far fa-calendar-alt"></i> ${l.date}</div><div class="meta-tag"><i class="far fa-clock"></i> ${escapeHtml(l.slot)}</div></div><div class="leave-reason-box">${escapeHtml(l.reason)}</div></div>`}); }
 function renderMatches() { const d=document.getElementById('match-list'); d.innerHTML=''; const k=document.getElementById('match-keyword').value.toLowerCase(); const s=document.getElementById('filter-singles').checked; const db=document.getElementById('filter-doubles').checked; const l=matches.filter(m=>{if(m.type==='singles'&&!s)return false;if(m.type==='doubles'&&!db)return false;const t=[...m.players,...m.opponents].map(getPlayerName).join(' ').toLowerCase();return !k||t.includes(k)}); if(l.length===0){d.innerHTML='<div style="text-align:center;padding:20px;color:#999">無紀錄</div>';return} l.forEach(m=>{const p=m.players.map(getPlayerName).join(' & ');const o=m.opponents.map(getPlayerName).join(' & ');const el=document.createElement('div');el.className='match-card-score';el.innerHTML=`<div class="match-score-header"><span>${m.date}</span><span>${m.type==='singles'?'單打':'雙打'}</span></div><div class="match-score-body"><div class="match-players-container"><div class="match-side"><span class="side-names">${escapeHtml(p)}</span></div><div style="font-size:0.8rem;color:#ccc">VS</div><div class="match-side"><span class="side-names">${escapeHtml(o)}</span></div></div><div class="match-score-box">${escapeHtml(m.score)}</div></div><div class="match-details-panel"><div style="margin-bottom:5px;"><strong>局數:</strong> ${escapeHtml(m.sets||'無')}</div>${m.video.url?`<button class="hero-btn" style="font-size:0.8rem;padding:4px 10px;" onclick="event.stopPropagation();window.open('${m.video.url}','_blank')">影片</button>`:''}</div>`;el.onclick=function(){this.classList.toggle('expanded')};d.appendChild(el)}); }
 function renderRoster(){const pd=document.getElementById('roster-players');const sd=document.getElementById('roster-staff');pd.innerHTML='';sd.innerHTML='';const q=document.getElementById('roster-search').value.toLowerCase();staff.forEach(s=>{if(q&&!s.name.includes(q))return;sd.innerHTML+=`<div class="roster-card-compact"><div class="roster-name">${escapeHtml(s.name)}</div><div class="roster-info">教練</div></div>`});players.forEach(p=>{const t=[p.name,p.grade,p.class].join(' ');if(q&&!t.includes(q))return;let i=(p.grade?p.grade+'年':'')+(p.class?p.class+'班':'')||'學員';pd.innerHTML+=`<div class="roster-card-compact"><div class="roster-name">${escapeHtml(p.name)}</div><div class="roster-info">${i}</div></div>`})}
 function renderSchedule(){const c=document.getElementById('schedule-container');c.innerHTML='';const q=document.getElementById('schedule-search').value.toLowerCase();weekdays.forEach((d,i)=>{const slots=schedule[d]||{};let has=false;defaultSlots.forEach(s=>{if(slots[s]?.length)has=true});const h=document.createElement('div');h.className='accordion-header';const isT=(i===((new Date().getDay()+6)%7));const op=isT||q;h.innerHTML=`<span>${d}</span> <i class="fas fa-chevron-${op?'up':'down'}"></i>`;if(op)h.classList.add('active');const ct=document.createElement('div');ct.className=`accordion-content ${op?'show':''}`;if(!has&&!q){ct.innerHTML='<div style="padding:10px;text-align:center;color:#ccc">本日無課</div>'}else{Object.keys(slots).forEach(s=>{const items=slots[s].filter(e=>!q||JSON.stringify(e).toLowerCase().includes(q));if(items.length===0)return;ct.innerHTML+=`<div class="time-slot-header">${s}</div>`;const g=document.createElement('div');g.className='compact-grid';items.forEach(e=>{let html=`<div class="compact-card"><div class="schedule-header"><span class="table-badge">T${e.table}</span><span class="coach-name">${escapeHtml(e.coach?.name||'')}</span></div><div class="player-name">${escapeHtml(e.playerA?.name||'')}</div>${e.playerB&&e.playerB.name?`<div class="player-name">${escapeHtml(e.playerB.name)}</div>`:''}</div>`;g.innerHTML+=html;});ct.appendChild(g)})}h.onclick=()=>{h.classList.toggle('active');ct.classList.toggle('show');h.querySelector('i').className=`fas fa-chevron-${ct.classList.contains('show')?'up':'down'}`};c.appendChild(h);c.appendChild(ct)})}
@@ -117,7 +130,7 @@ function renderMedia(){const c=document.getElementById('media-list');c.innerHTML
 
 function getPlayerName(id){const p=players.find(x=>x.id===id);return p?p.name:id} function escapeHtml(t){return t?String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;'):''} function convertDriveLink(u){if(!u)return'';if(u.includes('googleusercontent'))return u;const m=u.match(/\/d\/([a-zA-Z0-9_-]+)/);return m?`https://drive.google.com/uc?export=view&id=${m[1]}`:u} function getYouTubeID(u){const m=u.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);return (m&&m[1].length===11)?m[1]:null} function showToast(m){const c=document.getElementById('toast-container');const t=document.createElement('div');t.className='toast show';t.innerText=m;c.appendChild(t);setTimeout(()=>t.remove(),3000)} function showAnnouncementDetail(t,d,c){const m=document.getElementById('announcement-detail');m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()"><i class="fas fa-times"></i></button><h3 style="margin-top:10px;color:#0054a6">${t}</h3><div style="color:#888;font-size:0.85rem;margin-bottom:15px;border-bottom:1px dashed #eee;padding-bottom:10px">${d}</div><div style="line-height:1.8;color:#333;white-space:pre-wrap">${c}</div>`;document.body.classList.add('modal-open');m.classList.add('active')} function openVideoModal(id){const m=document.getElementById('announcement-detail');m.innerHTML=`<button class="btn-close-absolute" onclick="hideModal()" style="color:white;z-index:100"><i class="fas fa-times"></i></button><iframe src="https://www.youtube.com/embed/${id}?autoplay=1" style="width:100%;height:100%;border:none" allowfullscreen></iframe>`;m.style.background='black';m.style.padding='0';m.classList.add('active');document.body.classList.add('modal-open')} function hideModal(){document.querySelectorAll('.modal').forEach(m=>{m.classList.remove('active');m.style.background='';m.style.padding='';});document.body.classList.remove('modal-open')}
 
-// Admin
+// Admin Logic
 function renderAdmin() { 
     if(!sessionStorage.getItem('adm')) { 
         document.getElementById('admin-dashboard').classList.add('hidden');
@@ -138,41 +151,101 @@ function bindAdmin() {
     document.getElementById('admin-settings').onclick=()=>showAdminSettings(); 
 }
 
-// === Phase 1: Enhanced Admin Player List ===
+// === Phase 2: Player Management (Sort, Filter, Accordion, Dropdowns) ===
 function showAdminPlayerList() {
     const c = document.getElementById('admin-content');
-    let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3>球員名冊</h3><button class="hero-btn" onclick="editPlayer()"><i class="fas fa-plus"></i> 新增</button></div>`;
-    h += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;">`;
-    players.forEach(p => {
-        h += `<div class="card" id="p-card-${p.rowId}" style="margin:0;position:relative;">
-            <div class="admin-card-header">
-                <div>
-                    <div style="font-weight:bold;font-size:1.1rem;">${escapeHtml(p.name)}</div>
-                    <div style="font-size:0.85rem;color:#666;">${p.grade||'?'}年 ${p.class||'?'}班</div>
-                </div>
-                <div class="admin-card-actions">
-                    <button class="admin-btn-icon edit" onclick="editPlayer('${p.rowId}')"><i class="fas fa-edit"></i></button>
-                    <button class="admin-btn-icon delete" onclick="delPlayer('${p.rowId}')"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-            <div style="font-size:0.85rem;color:#555;">膠皮: ${escapeHtml(p.paddle||'無')}</div>
-        </div>`;
+    
+    // Sort logic: Grade ASC (1-6, 7=Grad) -> Class ASC
+    let sortedList = players.slice().sort((a,b) => {
+        const ga = a.grade === '畢業' ? 7 : parseInt(a.grade)||99;
+        const gb = b.grade === '畢業' ? 7 : parseInt(b.grade)||99;
+        if(ga !== gb) return ga - gb;
+        return (parseInt(a.class)||0) - (parseInt(b.class)||0);
+    });
+
+    let h = `
+    <div style="margin-bottom:15px; display:flex; gap:10px; justify-content:space-between; align-items:center;">
+        <input id="adm-player-search" class="filter-search-input" placeholder="搜尋姓名..." style="flex:1;">
+        <button class="hero-btn" onclick="editPlayer()" style="width:auto; padding:8px 12px;"><i class="fas fa-plus"></i> 新增</button>
+    </div>
+    <div id="adm-player-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
+    `;
+    
+    sortedList.forEach(p => {
+        h += renderPlayerCard(p);
     });
     h += '</div>';
     c.innerHTML = h;
+
+    // Search Binding
+    document.getElementById('adm-player-search').oninput = (e) => {
+        const q = e.target.value.toLowerCase();
+        const grid = document.getElementById('adm-player-grid');
+        grid.innerHTML = '';
+        sortedList.filter(p => p.name.includes(q)).forEach(p => {
+            grid.innerHTML += renderPlayerCard(p);
+        });
+    };
+}
+
+function renderPlayerCard(p) {
+    // Accordion Card
+    return `
+    <div class="card player-admin-card" id="p-card-${p.rowId}" onclick="this.classList.toggle('expanded')">
+        <div class="admin-card-header">
+            <div>
+                <div style="font-weight:bold;font-size:1.1rem;">
+                    ${escapeHtml(p.name)} 
+                    ${p.nickname ? `<span style="font-size:0.8rem;color:#888">(${escapeHtml(p.nickname)})</span>` : ''}
+                </div>
+                <div style="font-size:0.85rem;color:#666;">
+                    ${p.grade||'?'}年 ${p.class||'?'}班 | ${p.gender||'-'}
+                </div>
+            </div>
+            <div class="admin-card-actions">
+                <button class="admin-btn-icon edit" onclick="event.stopPropagation(); editPlayer('${p.rowId}')"><i class="fas fa-edit"></i></button>
+                <button class="admin-btn-icon delete" onclick="event.stopPropagation(); delPlayer('${p.rowId}')"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+        <div class="player-details-panel">
+            <div class="detail-row"><span>持拍:</span> ${escapeHtml(p.hand||'-')}</div>
+            <div class="detail-row"><span>打法:</span> ${escapeHtml(p.play_style||'-')}</div>
+            <div class="detail-row"><span>膠皮:</span> ${escapeHtml(p.paddle||'-')}</div>
+        </div>
+    </div>`;
 }
 
 window.editPlayer = (rowId) => {
-    const p = rowId ? players.find(x => x.rowId == rowId) : { name:'', grade:'', class:'', paddle:'' };
+    const p = rowId ? players.find(x => x.rowId == rowId) : { name:'', grade:'', class:'', paddle:'', nickname:'', gender:'', hand:'', play_style:'' };
     const title = rowId ? '編輯球員' : '新增球員';
     const c = document.getElementById('admin-content');
-    c.innerHTML = `<div class="card">
+    
+    // Helper to generate options
+    const genOpts = (opts, val) => opts.map(o => `<option value="${o}" ${o==val?'selected':''}>${o}</option>`).join('');
+
+    c.innerHTML = `
+    <div class="card">
         <h3>${title}</h3>
-        <label>姓名</label><input id="ep-name" class="admin-input" value="${escapeHtml(p.name)}">
-        <label>年級</label><input id="ep-grade" class="admin-input" type="number" value="${p.grade||''}">
-        <label>班級</label><input id="ep-class" class="admin-input" type="number" value="${p.class||''}">
-        <label>膠皮</label><input id="ep-paddle" class="admin-input" value="${escapeHtml(p.paddle||'')}">
-        <div style="margin-top:15px; display:flex; gap:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div><label>姓名</label><input id="ep-name" class="admin-input" value="${escapeHtml(p.name)}"></div>
+            <div><label>暱稱</label><input id="ep-nickname" class="admin-input" value="${escapeHtml(p.nickname||'')}"></div>
+            
+            <div><label>年級</label><select id="ep-grade" class="admin-input"><option value="">請選擇</option>${genOpts(OPT_GRADES, p.grade)}</select></div>
+            <div><label>班級</label><input id="ep-class" class="admin-input" type="number" value="${p.class||''}"></div>
+            
+            <div><label>性別</label><select id="ep-gender" class="admin-input"><option value="">請選擇</option>${genOpts(OPT_GENDER, p.gender)}</select></div>
+            <div><label>持拍</label><select id="ep-hand" class="admin-input"><option value="">請選擇</option>${genOpts(OPT_HAND, p.hand)}</select></div>
+        </div>
+        
+        <label style="margin-top:10px;display:block;">打法</label><input id="ep-playstyle" class="admin-input" value="${escapeHtml(p.play_style||'')}">
+        
+        <label style="margin-top:10px;display:block;">膠皮/備註</label>
+        <select id="ep-paddle" class="admin-input">
+            <option value="">請選擇</option>
+            ${genOpts(OPT_PADDLES, p.paddle)}
+        </select>
+
+        <div style="margin-top:20px; display:flex; gap:10px;">
             <button id="btn-save-player" class="hero-btn" onclick="savePlayerEdit('${rowId||''}')">儲存</button>
             <button class="hero-btn" style="background:#ccc" onclick="showAdminPlayerList()">取消</button>
         </div>
@@ -184,38 +257,35 @@ window.savePlayerEdit = async (rowId) => {
     const name = document.getElementById('ep-name').value;
     if(!name) return alert('請輸入姓名');
     
-    // UI Feedback: Loading
-    btn.innerText = '⏳ 儲存中...';
-    btn.disabled = true;
+    btn.innerText = '⏳ 儲存中...'; btn.disabled = true;
 
     const payload = {
         rowId: rowId,
         name: name,
+        nickname: document.getElementById('ep-nickname').value,
         grade: document.getElementById('ep-grade').value,
         class: document.getElementById('ep-class').value,
+        gender: document.getElementById('ep-gender').value,
+        hand: document.getElementById('ep-hand').value,
+        play_style: document.getElementById('ep-playstyle').value,
         paddle: document.getElementById('ep-paddle').value
     };
     
     await sendToGasWithAuth('save_player', payload);
-    // Success: Reload List directly
     showAdminPlayerList();
     showToast('✅ 儲存成功');
 };
 
 window.delPlayer = async (id) => {
     if(confirm('確定要刪除這位球員嗎？')) {
-        // UI Feedback: Remove DOM immediately
         const card = document.getElementById(`p-card-${id}`);
         if(card) card.style.opacity = '0.5';
-        
         await sendToGasWithAuth('delete_player', {rowId: id});
-        
         if(card) card.remove();
         showToast('🗑️ 已刪除');
     }
 };
 
-// Admin Leave (Old Logic Preserved)
 function showAdminLeaveList() {
     const c = document.getElementById('admin-content');
     let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3>請假管理</h3><button id="adm-filter-today" class="btn-filter-today ${adminLeaveShowToday?'active':''}"><i class="fas fa-calendar-day"></i> 只看今日</button></div>`;

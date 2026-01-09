@@ -1,5 +1,4 @@
-/* styles.css - v28.0 (Phase 1: UI Fixes & Spinner) */
-/* ... (基本樣式保留，僅修改 Admin Card 部分) ... */
+/* styles.css - v29.0 (Accordion Players & UI Fixes) */
 :root { --primary-color:#0054a6; --primary-dark:#003366; --accent-gold:#FFD700; --danger-color:#e74c3c; --bg-color:#f4f7f6; --text-main:#2c3e50; }
 * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family:'Roboto',sans-serif; background:var(--bg-color); color:var(--text-main); padding-bottom:90px; }
@@ -57,34 +56,19 @@ section#matches h2::before { content:''; display:block; width:6px; height:24px; 
 .meta-tag { display: flex; align-items: center; gap: 4px; background: #f0f2f5; padding: 4px 8px; border-radius: 6px; }
 .leave-reason-box { background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px; font-size: 0.9rem; color: #444; line-height: 1.4; }
 
-/* ★★★ Phase 1: Improved Admin Player Card ★★★ */
-.admin-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
-}
-.admin-card-actions {
-    display: flex;
-    gap: 8px;
-}
-.admin-btn-icon {
-    border: 1px solid #ddd;
-    background: white;
-    color: #666;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    transition: all 0.2s;
-}
+/* Admin Player Accordion */
+.player-admin-card { cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+.player-admin-card.expanded { border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.admin-card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.admin-card-actions { display: flex; gap: 8px; }
+.admin-btn-icon { border: 1px solid #ddd; background: white; color: #666; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: all 0.2s; }
 .admin-btn-icon:hover { background: #f0f0f0; transform: translateY(-2px); }
 .admin-btn-icon.edit { color: var(--primary-color); border-color: var(--primary-color); }
 .admin-btn-icon.delete { color: var(--danger-color); border-color: var(--danger-color); }
+.player-details-panel { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eee; font-size: 0.85rem; color: #555; }
+.player-admin-card.expanded .player-details-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.detail-row { display: flex; gap: 5px; }
+.detail-row span { font-weight: bold; color: #333; }
 
 /* Schedule */
 .accordion-header { background:white; padding:12px 15px; border-radius:10px; margin-bottom:6px; font-weight:bold; color:var(--primary-dark); display:flex; justify-content:space-between; border-left:4px solid var(--accent-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
